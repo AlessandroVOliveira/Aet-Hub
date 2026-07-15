@@ -1,14 +1,377 @@
-// Schema inicial do AET Hub.
-// Os modelos de domínio (usuários, torneios, chaveamento, loja, feed, chat etc.)
-// serão definidos na fase de implementação, a partir do PRD.
-// Row Level Security (RLS) deve ser habilitada via migration SQL para
-// toda tabela que armazene dados sensíveis ou específicos de usuário.
+// Schema da Fase 1 do AET Hub (ver docs/PRD.md, seções 5 e 13).
+// Fase 2/3 (Achievement, Community, Post, Chat, Notification etc.) ficam
+// de fora por enquanto — sem requisito de campo concreto ainda no PRD.
+//
+// RLS (Row Level Security) não é modelada aqui — o Prisma não tem suporte
+// nativo a policies. As policies, grants e as roles de runtime
+// (aet_hub_app / aet_hub_auth) são aplicadas via SQL puro numa migration
+// separada (prisma/migrations/*_rls_policies) e em prisma/roles.sql.
+// Ver CLAUDE.md para a regra de segurança que torna RLS obrigatória.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime: role aet_hub_app (RLS ativa). Usada pelo Prisma Client gerado.
+  url       = env("DATABASE_URL")
+  // Migrations/schema: role owner/superuser. Usada só por `prisma migrate`.
+  directUrl = env("MIGRATE_DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  CHECKIN_OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum BracketType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+}
+
+enum BracketSide {
+  WINNERS
+  LOSERS
+}
+
+enum TiebreakerRule {
+  HEAD_TO_HEAD
+  WIN_BALANCE
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  WAITLISTED
+}
+
+enum CheckinMethod {
+  MANUAL_CODE
+  QR_CODE
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  VOIDED
+}
+
+enum PointsTransactionType {
+  MATCH_WIN
+  MATCH_LOSS
+  PLACEMENT
+  BONUS
+  REDEMPTION
+  ADJUSTMENT
+}
+
+enum RedemptionStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  username        String    @unique
+  passwordHash    String    @map("password_hash")
+  email           String    @unique
+  role            Role      @default(PLAYER)
+  termsAcceptedAt DateTime  @map("terms_accepted_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  deletedAt       DateTime? @map("deleted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  profile               Profile?
+  address               Address?
+  registrations         Registration[]
+  checkinsPerformed     Checkin[]
+  pointsTransactions    PointsTransaction[] @relation("PointsTransactionUser")
+  pointsAdjustmentsMade PointsTransaction[] @relation("PointsTransactionCreatedBy")
+  redemptions           Redemption[]
+  tournamentsCreated    Tournament[]
+  auditLogs             AuditLog[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  displayName       String   @map("display_name")
+  favoriteGameId    String?  @map("favorite_game_id")
+  favoriteCharacter String?  @map("favorite_character")
+  theme             String?
+  avatarUrl         String?  @map("avatar_url")
+  bio               String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user         User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteGame Game? @relation(fields: [favoriteGameId], references: [id])
+
+  @@map("profiles")
+}
+
+model Address {
+  id              String   @id @default(cuid())
+  userId          String   @unique @map("user_id")
+  cep             String
+  street          String
+  number          String
+  complement      String?
+  neighborhood    String
+  city            String
+  state           String
+  cepValidatedVia String   @map("cep_validated_via")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+model Game {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  iconUrl   String?  @map("icon_url")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tournaments Tournament[]
+  profiles    Profile[]
+
+  @@map("games")
+}
+
+model Tournament {
+  id                  String           @id @default(cuid())
+  name                String
+  gameId              String           @map("game_id")
+  description         String?
+  registrationStartAt DateTime         @map("registration_start_at")
+  registrationEndAt   DateTime         @map("registration_end_at")
+  checkinDeadlineAt   DateTime         @map("checkin_deadline_at")
+  eventStartAt        DateTime         @map("event_start_at")
+  entryFeeCents       Int              @map("entry_fee_cents")
+  bracketType         BracketType      @map("bracket_type")
+  tiebreakerRule      TiebreakerRule?  @map("tiebreaker_rule")
+  status              TournamentStatus @default(DRAFT)
+  pointsPerWin        Int              @map("points_per_win")
+  pointsPerLoss       Int              @map("points_per_loss")
+  createdByUserId     String           @map("created_by_user_id")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  game               Game                        @relation(fields: [gameId], references: [id])
+  createdBy          User                        @relation(fields: [createdByUserId], references: [id])
+  placementRewards   TournamentPlacementReward[]
+  sponsors           Sponsor[]
+  registrations      Registration[]
+  bracketSlots       BracketSlot[]
+  matches            Match[]
+  pointsTransactions PointsTransaction[]
+
+  @@map("tournaments")
+}
+
+model TournamentPlacementReward {
+  id            String  @id @default(cuid())
+  tournamentId  String  @map("tournament_id")
+  placement     Int
+  potPercentage Decimal @map("pot_percentage") @db.Decimal(5, 2)
+  bonusPoints   Int     @default(0) @map("bonus_points")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, placement])
+  @@map("tournament_placement_rewards")
+}
+
+model Sponsor {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  name         String
+  logoUrl      String   @map("logo_url")
+  link         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("sponsors")
+}
+
+model Registration {
+  id           String             @id @default(cuid())
+  tournamentId String             @map("tournament_id")
+  userId       String             @map("user_id")
+  status       RegistrationStatus @default(PENDING)
+  qrCodeToken  String             @unique @map("qr_code_token")
+  registeredAt DateTime           @default(now()) @map("registered_at")
+  cancelledAt  DateTime?          @map("cancelled_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  checkin      Checkin?
+  bracketSlots BracketSlot[]
+  matchesAsA   Match[]       @relation("MatchRegistrationA")
+  matchesAsB   Match[]       @relation("MatchRegistrationB")
+  matchesWon   Match[]       @relation("MatchWinner")
+
+  @@unique([tournamentId, userId])
+  @@map("registrations")
+}
+
+model Checkin {
+  id                String        @id @default(cuid())
+  registrationId    String        @unique @map("registration_id")
+  method            CheckinMethod
+  checkedInByUserId String        @map("checked_in_by_user_id")
+  checkedInAt       DateTime      @map("checked_in_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  registration Registration @relation(fields: [registrationId], references: [id])
+  checkedInBy  User         @relation(fields: [checkedInByUserId], references: [id])
+
+  @@map("checkins")
+}
+
+model BracketSlot {
+  id             String      @id @default(cuid())
+  tournamentId   String      @map("tournament_id")
+  side           BracketSide @default(WINNERS)
+  round          Int
+  position       Int
+  registrationId String?     @map("registration_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id])
+  registration Registration? @relation(fields: [registrationId], references: [id])
+  matches      Match[]
+
+  @@unique([tournamentId, side, round, position])
+  @@map("bracket_slots")
+}
+
+model Match {
+  id                   String      @id @default(cuid())
+  tournamentId         String      @map("tournament_id")
+  bracketSlotId        String      @map("bracket_slot_id")
+  registrationAId      String?     @map("registration_a_id")
+  registrationBId      String?     @map("registration_b_id")
+  winnerRegistrationId String?     @map("winner_registration_id")
+  scoreA               Int?        @map("score_a")
+  scoreB               Int?        @map("score_b")
+  status               MatchStatus @default(SCHEDULED)
+  scheduledAt          DateTime?   @map("scheduled_at")
+  playedAt             DateTime?   @map("played_at")
+  voidedAt             DateTime?   @map("voided_at")
+  voidedReason         String?     @map("voided_reason")
+  correctedFromMatchId String?     @unique @map("corrected_from_match_id")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  tournament         Tournament          @relation(fields: [tournamentId], references: [id])
+  bracketSlot        BracketSlot         @relation(fields: [bracketSlotId], references: [id])
+  registrationA      Registration?       @relation("MatchRegistrationA", fields: [registrationAId], references: [id])
+  registrationB      Registration?       @relation("MatchRegistrationB", fields: [registrationBId], references: [id])
+  winner             Registration?       @relation("MatchWinner", fields: [winnerRegistrationId], references: [id])
+  correctedFromMatch Match?              @relation("MatchCorrection", fields: [correctedFromMatchId], references: [id])
+  correctedByMatch   Match?              @relation("MatchCorrection")
+  pointsTransactions PointsTransaction[]
+
+  @@index([tournamentId, status])
+  @@map("matches")
+}
+
+model PointsTransaction {
+  id              String                @id @default(cuid())
+  userId          String                @map("user_id")
+  type            PointsTransactionType
+  amount          Int
+  tournamentId    String?               @map("tournament_id")
+  matchId         String?               @map("match_id")
+  redemptionId    String?               @unique @map("redemption_id")
+  description     String
+  createdByUserId String?               @map("created_by_user_id")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  user       User        @relation("PointsTransactionUser", fields: [userId], references: [id])
+  tournament Tournament? @relation(fields: [tournamentId], references: [id])
+  match      Match?      @relation(fields: [matchId], references: [id])
+  redemption Redemption? @relation(fields: [redemptionId], references: [id])
+  createdBy  User?       @relation("PointsTransactionCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("points_transactions")
+}
+
+model StoreItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  costInCoins Int      @map("cost_in_coins")
+  stock       Int?
+  imageUrl    String?  @map("image_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  partnerName String?  @map("partner_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  redemptions Redemption[]
+
+  @@map("store_items")
+}
+
+model Redemption {
+  id          String           @id @default(cuid())
+  storeItemId String           @map("store_item_id")
+  userId      String           @map("user_id")
+  costInCoins Int              @map("cost_in_coins")
+  status      RedemptionStatus @default(PENDING)
+  redeemedAt  DateTime         @default(now()) @map("redeemed_at")
+  fulfilledAt DateTime?        @map("fulfilled_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  storeItem         StoreItem          @relation(fields: [storeItemId], references: [id])
+  user              User               @relation(fields: [userId], references: [id])
+  pointsTransaction PointsTransaction?
+
+  @@map("redemptions")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String   @map("actor_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User @relation(fields: [actorUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }

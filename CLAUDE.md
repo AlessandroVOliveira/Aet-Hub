@@ -33,10 +33,6 @@ requisitos de segurança do produto: tipagem reduz erros bobos, e o Prisma usa
 queries parametrizadas nativamente, eliminando SQL injection por
 concatenação de strings.
 
-`apps/api` usa `module`/`moduleResolution: NodeNext` (ESM nativo do Node):
-todo import relativo entre arquivos `.ts` precisa da extensão `.js` no
-caminho (ex.: `import app from './app.js'`), mesmo importando um `.ts`.
-
 ## Estrutura de pastas
 
 ```
@@ -122,6 +118,45 @@ segurança como requisito não-negociável:
 - **Validação de entrada**: validar e sanitizar todo input do usuário no
   backend (ex.: com `zod`) antes de processar ou persistir, mesmo que já
   validado no frontend.
+
+## Padrões do backend (apps/api)
+
+- **Dois `PrismaClient`** (`config/prisma.ts`): `prisma` (role `aet_hub_app`,
+  runtime autenticado) e `authPrisma` (role `aet_hub_auth`, escopo estreito
+  só para login/cadastro). `authPrisma` só pode ser importado dentro de
+  `modules/auth/` — nunca usar fora dali.
+- **RLS depende de contexto de sessão por request**: toda query em tabela
+  com RLS (dado sensível/de usuário) precisa passar pelo helper `withRls`
+  (`config/rls.ts`), que abre uma transação interativa do Prisma e seta
+  `app.current_user_id`/`app.current_role` antes das queries. `SET LOCAL`
+  fora de uma transação interativa não funciona de forma confiável com o
+  pool de conexões do Prisma.
+- **Toda tabela nova com dado sensível/de usuário precisa de policy de RLS
+  E de GRANT explícito** para a role que vai acessá-la — `FORCE ROW LEVEL
+SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
+  uma policy casando a operação (SELECT/INSERT/UPDATE/DELETE) e a role.
+  `INSERT ... RETURNING` (que o Prisma emite em todo INSERT, inclusive
+  nested writes) exige privilégio de SELECT também, não só INSERT.
+- **`asyncHandler`** (`utils/async-handler.ts`): todo handler de rota
+  assíncrono deve passar por ele — o projeto usa Express 4 (não a 5), que
+  não encaminha rejeições de Promise para o error handler sozinho.
+- `apps/api` usa `module`/`moduleResolution: NodeNext` (ESM nativo do
+  Node): todo import relativo entre arquivos `.ts` precisa da extensão
+  `.js` no caminho (ex.: `import app from './app.js'`), mesmo importando
+  um `.ts`.
+
+## Banco de dados local (Docker Compose)
+
+- `npm run db:up --workspace apps/api` sobe o Postgres.
+- `npm run db:roles --workspace apps/api` cria/atualiza as roles de
+  runtime (`aet_hub_app`, `aet_hub_auth`) e os grants de nível de schema —
+  precisa rodar **depois de qualquer `prisma migrate reset`**, porque o
+  reset recria o schema `public` do zero e apaga o `GRANT USAGE ON SCHEMA`.
+- Privilégios de nível de tabela para `aet_hub_app` ficam garantidos direto
+  na migration `rls_policies` (`GRANT ... ON ALL TABLES IN SCHEMA public`),
+  não só via `ALTER DEFAULT PRIVILEGES` em `roles.sql` — `ALTER DEFAULT
+PRIVILEGES` só vale para tabelas criadas depois dele, então não
+  retroagiria para tabelas recriadas por um reset.
 
 ## Documentação de produto
 

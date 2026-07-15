@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+import { authRouter } from './modules/auth/auth.routes.js';
+import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
 
@@ -25,5 +27,18 @@ app.use(express.json({ limit: '1mb' }));
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Limite mais restrito em cadastro/login (RNF-07): dificulta criação em
+// massa de contas falsas e força bruta de senha, sem afetar o resto da API.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/auth', authLimiter, authRouter);
+
+app.use(errorHandler);
 
 export default app;

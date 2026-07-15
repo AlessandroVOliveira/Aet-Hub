@@ -31,7 +31,8 @@ docs/       # PRD e demais documentos de produto
 ## Pré-requisitos
 
 - Node.js 20+
-- PostgreSQL 15+ rodando localmente ou acessível via `DATABASE_URL`
+- Docker + Docker Compose (para o Postgres local) — ou uma instância
+  PostgreSQL 16+ própria, acessível via `DATABASE_URL`
 
 ## Como rodar o projeto
 
@@ -42,21 +43,35 @@ docs/       # PRD e demais documentos de produto
    npm install
    ```
 
-2. Copie o arquivo de variáveis de ambiente e preencha com valores reais:
+2. Copie o arquivo de variáveis de ambiente e preencha com valores reais
+   (senhas fortes para `POSTGRES_SUPERUSER_PASSWORD`, `AET_APP_DB_PASSWORD`,
+   `AET_AUTH_DB_PASSWORD` e um `JWT_SECRET` aleatório):
 
    ```bash
    cp .env.example .env
    ```
 
-3. Gere o client do Prisma e aplique as migrations (necessário assim que
-   o schema em `apps/api/prisma/schema.prisma` tiver modelos definidos):
+3. Suba o Postgres local e crie as roles de runtime (RLS exige três roles
+   separadas — ver `CLAUDE.md`):
+
+   ```bash
+   npm run db:up --workspace apps/api
+   npm run db:roles --workspace apps/api
+   ```
+
+4. Gere o client do Prisma e aplique as migrations (cria as tabelas e as
+   policies de Row Level Security):
 
    ```bash
    npm run prisma:generate --workspace apps/api
    npm run prisma:migrate --workspace apps/api
    ```
 
-4. Suba o backend e o frontend em terminais separados:
+   Se em algum momento você rodar `prisma migrate reset`, rode
+   `npm run db:roles --workspace apps/api` de novo em seguida — o reset
+   recria o schema do banco e apaga os grants de nível de schema.
+
+5. Suba o backend e o frontend em terminais separados:
 
    ```bash
    npm run dev:api
@@ -77,6 +92,15 @@ docs/       # PRD e demais documentos de produto
 | `npm run lint`         | Roda o ESLint em todo o repositório                   |
 | `npm run format`       | Formata o repositório com Prettier                    |
 | `npm run format:check` | Verifica formatação sem alterar arquivos              |
+
+## Scripts do backend (apps/api)
+
+| Comando                                       | Descrição                                        |
+| --------------------------------------------- | ------------------------------------------------ |
+| `npm run db:up --workspace apps/api`          | Sobe o Postgres local via Docker Compose         |
+| `npm run db:down --workspace apps/api`        | Derruba o Postgres local                         |
+| `npm run db:roles --workspace apps/api`       | Cria/atualiza as roles de runtime do banco (RLS) |
+| `npm run prisma:migrate --workspace apps/api` | Roda as migrations do Prisma                     |
 
 ## Variáveis de ambiente
 
