@@ -118,9 +118,8 @@ segurança como requisito não-negociável:
   backend (ex.: com `zod`) antes de processar ou persistir, mesmo que já
   validado no frontend.
 
-## Próximos passos de produto
+## Documentação de produto
 
-O PRD e o README completos do sistema ainda serão elaborados a partir do
-contexto original do projeto (ver `Aet Hub.txt` na raiz) — cobrindo modelo de
-dados, fluxos de torneio/chaveamento, sistema de pontos/gamificação e loja em
-detalhe.
+O PRD completo está em `docs/PRD.md` (requisitos funcionais/não-funcionais,
+modelo de dados conceitual, fluxos principais, roadmap por fases). O
+`README.md` na raiz cobre como rodar o projeto localmente.
