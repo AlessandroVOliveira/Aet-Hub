@@ -69,14 +69,14 @@ docs/       # PRD e demais documentos de produto
 
 ## Scripts disponíveis (raiz)
 
-| Comando | Descrição |
-|---|---|
-| `npm run dev:web` | Sobe o frontend em modo desenvolvimento |
-| `npm run dev:api` | Sobe o backend em modo desenvolvimento |
-| `npm run build` | Builda todos os workspaces que tiverem script `build` |
-| `npm run lint` | Roda o ESLint em todo o repositório |
-| `npm run format` | Formata o repositório com Prettier |
-| `npm run format:check` | Verifica formatação sem alterar arquivos |
+| Comando                | Descrição                                             |
+| ---------------------- | ----------------------------------------------------- |
+| `npm run dev:web`      | Sobe o frontend em modo desenvolvimento               |
+| `npm run dev:api`      | Sobe o backend em modo desenvolvimento                |
+| `npm run build`        | Builda todos os workspaces que tiverem script `build` |
+| `npm run lint`         | Roda o ESLint em todo o repositório                   |
+| `npm run format`       | Formata o repositório com Prettier                    |
+| `npm run format:check` | Verifica formatação sem alterar arquivos              |
 
 ## Variáveis de ambiente
 

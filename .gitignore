@@ -6,6 +6,7 @@ dist/
 build/
 apps/web/dist/
 apps/api/dist/
+*.tsbuildinfo
 
 # Ambiente / segredos
 .env

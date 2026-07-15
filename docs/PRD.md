@@ -26,15 +26,16 @@ moderna.
 
 ## 3. Personas / Atores
 
-| Persona | Descrição | Necessidade principal |
-|---|---|---|
-| **Admin/Organizador** | Membro da equipe AET que cria e roda os torneios | Configurar torneio, fazer checkin rápido, manter a chave atualizada em tempo real |
-| **Player** | Morador de Alegrete que participa dos torneios | Se inscrever, saber contra quem joga, acompanhar pontos/moedas, interagir com a comunidade |
-| **Visitante (não autenticado)** | Alguém avaliando se quer se cadastrar | Ver próximos eventos e talvez o feed público antes de decidir se cadastrar |
+| Persona                         | Descrição                                        | Necessidade principal                                                                      |
+| ------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| **Admin/Organizador**           | Membro da equipe AET que cria e roda os torneios | Configurar torneio, fazer checkin rápido, manter a chave atualizada em tempo real          |
+| **Player**                      | Morador de Alegrete que participa dos torneios   | Se inscrever, saber contra quem joga, acompanhar pontos/moedas, interagir com a comunidade |
+| **Visitante (não autenticado)** | Alguém avaliando se quer se cadastrar            | Ver próximos eventos e talvez o feed público antes de decidir se cadastrar                 |
 
 ## 4. Escopo
 
 ### Dentro do MVP
+
 - Cadastro/autenticação por usuário (com validação de CEP de Alegrete)
 - CRUD de torneios pelo admin, com definição de pontuação e formato de chave
 - Checkin (manual por código + QR code)
@@ -49,6 +50,7 @@ moderna.
 - Log de auditoria para o admin
 
 ### Fora do MVP (fases futuras — ver seção 13)
+
 - Pagamento online de inscrição (PIX) com split automático
 - Torneios em equipe/dupla
 - App nativo (o MVP é web responsiva)
@@ -259,12 +261,12 @@ Entidades principais: `User`, `Profile`, `Address` (CEP), `Game`,
 
 ## 11. Riscos e mitigação
 
-| Risco | Mitigação |
-|---|---|
-| Sistema indisponível no dia do evento | Fallback manual documentado (planilha/QR impresso) + observabilidade e alertas |
+| Risco                                                    | Mitigação                                                                                         |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Sistema indisponível no dia do evento                    | Fallback manual documentado (planilha/QR impresso) + observabilidade e alertas                    |
 | Fraude na validação de CEP (usuário de fora de Alegrete) | Validação de CEP é um filtro inicial, não a única barreira; manter processo de auditoria/denúncia |
-| Abuso da loja de pontos (multi-contas) | Rate limiting no cadastro, ledger auditável, revisão manual de resgates suspeitos |
-| Disputa de resultado gerar conflito | Fluxo de contestação com justificativa registrada (RF-19) |
+| Abuso da loja de pontos (multi-contas)                   | Rate limiting no cadastro, ledger auditável, revisão manual de resgates suspeitos                 |
+| Disputa de resultado gerar conflito                      | Fluxo de contestação com justificativa registrada (RF-19)                                         |
 
 ## 12. Requisitos sugeridos (além da lista original)
 

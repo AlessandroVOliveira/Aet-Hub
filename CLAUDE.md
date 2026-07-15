@@ -7,6 +7,7 @@ Esports Tournament), em Alegrete/RS. Centraliza cadastro de players, pontuação
 informações de campeonatos, checkin nos eventos e chaveamento das disputas.
 
 Atores principais:
+
 - **Admin**: configura métricas de pontuação, cria e gerencia torneios,
   modelos de chaveamento, apoiadores, efetua checkin de players, gerencia a
   loja de pontos, modera comunidades, acessa logs do sistema.
@@ -31,6 +32,10 @@ TypeScript de ponta a ponta e Prisma foram escolhidos por reforçarem os
 requisitos de segurança do produto: tipagem reduz erros bobos, e o Prisma usa
 queries parametrizadas nativamente, eliminando SQL injection por
 concatenação de strings.
+
+`apps/api` usa `module`/`moduleResolution: NodeNext` (ESM nativo do Node):
+todo import relativo entre arquivos `.ts` precisa da extensão `.js` no
+caminho (ex.: `import app from './app.js'`), mesmo importando um `.ts`.
 
 ## Estrutura de pastas
 
