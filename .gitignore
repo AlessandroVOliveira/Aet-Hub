@@ -1,0 +1,33 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+build/
+apps/web/dist/
+apps/api/dist/
+
+# Ambiente / segredos
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Prisma
+apps/api/prisma/dev.db
+apps/api/prisma/migrations/**/migration.sql.bak
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Testes / cobertura
+coverage/

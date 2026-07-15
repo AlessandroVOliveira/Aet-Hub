@@ -1,0 +1,14 @@
+// Schema inicial do AET Hub.
+// Os modelos de domínio (usuários, torneios, chaveamento, loja, feed, chat etc.)
+// serão definidos na fase de implementação, a partir do PRD.
+// Row Level Security (RLS) deve ser habilitada via migration SQL para
+// toda tabela que armazene dados sensíveis ou específicos de usuário.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

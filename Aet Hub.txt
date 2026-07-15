@@ -1,0 +1,53 @@
+Contexto:
+	- O AET HUB será ou é o hub para jogadores que participam dos torneios de jogos de videogames organizados pela equipe da AET - Alegrete Esports Tournament - o hub tem como intuito centralizar o cadastro dos players, fazer uma melhor contagem de pontos, entregar informações sobre campeonatos que irão ser realizados, fazer um checkin de forma mais rápida nos eventos, organizar as chaves de embate.
+	- A AET é a organização que realiza eventos de diversos jogos eletrônicos na cidade de alegrete.
+
+Stack:
+	- Penso em uma stack simples com react node e postgre, acredito que seja uma stack solida para um sistema de interação entre players. Mas pode me sugerir alguma coisa melhor
+
+Design: penso em um sistema com um design que remeta a jogos retro mas com organização moderna pensando também em responsividade mobile.
+penso em também sistema de lvls, e gameficação como acchievements
+
+Atores:
+	- Admins, os admins terão como acesso toda a parte de configuração das métricas de pontuação e cadastro de novos eventos, assim como modelo de chaves desses eventos, efetuar o checkin dos players dos eventos no dia do evento
+	- Usuários, terão uma área própria com perfil personalizável, uma área geral com os eventos próximos onde ele pode se inscrever, um feed principal com noticias sobre jogos com sessão de comentários, uma área de loja, uma área de troca de pontos, 
+
+Requisitos:
+
+Sistema:
+	- Row level security para segurança do banco de dados
+	- Tentar prevenir qualquer tipo de xss injection
+	- Tentar prevenir qualquer tipo de sql injection
+	- Logins por nome de usuário nada de e-mails
+	- Tela de cadastro de usuário
+	- Solicitar cep para saber se é da cidade de alegrete mesmo para poder se cadastrar
+	
+
+Como admin eu quero:
+	- Poder criar um torneio de um jogo eletrônico
+		- Definir os dados principais para identificação desse torneio, nome, jogo, datas das inscrições, data e horários limites de checkin, valor da inscrição, tipo de chaveamento do torneio (winners e loosers), valor estimado com as inscrições e valores atualizados com os checkins que cada lugar do torneio receberá, percentual do pot cada lugar receberá, se haverá mais algum bônus além da premiação, definir pontuação geral para os players por vitória, por derrota, por posição no termino do torneio, poder iniciar o torneio e ir marcando nas chaves quem perdeu ou ganhou e a chave ir atualizando para todos os players, apoiadores do evento com logo e link para uma rede social ou site deles, 
+	- Efetuar um checkin de um jogador no torneio
+		- Informar o código do player que esta fazendo checkin assim ele já é alocado na chave do torneio após o checkin
+		- Ou mesmo ler o qr code do player para efetuar o checkin dele
+	- Ter acesso a exclusão, edição de dados dos players para ajustes
+	- Ter acesso a um log do sistema para avaliação
+	- Poder encerrar o torneio mostrando o vencedor e as colocações dos players.
+	- Poder anexar fotos após o encerramento para que as pessoas possam baixar e postar em suas redes
+	- poder adicionar itens a loja de pontos para os players trocarem moedas que ganham dentro da plataforma (esses itens podem ser descontos em lojas da cidade ou itens visuais para o seu perfil)
+	- Poder criar uma comunidade ou grupo onde pode se falar de um assunto especifico
+	Sugira requisitos aqui
+
+Como Usuário eu quero:
+	- Poder me cadastrar no sistema como jogador
+	- Poder editar meu perfil com meus dados de jogador, como jogo favorito, personagem, temas etc
+	- Poder ler o feed principal sobre jogos competitivos
+	- Poder me cadastrar em um evento e receber um qr code para checkin no dia do evento
+	- Poder ver meu histórico de eventos e lutas, rivais mais fortes, pontuações, moedas do hub para usar na loja de pontos
+	- Poder utilizar um chat geral com todos os players
+	- Poder utilizar um chat com um player em particular
+	- Poder ver comunidades ou grupos de jogos separados onde usuários postam sobre um jogo especifico, links, noticias, discussões.
+	- Poder ver a chave em que eu estou e contra quem vou lutar no torneio que me inscrevi
+	- Receber notificações quando minha disputa estiver próxima
+	Sugira requisitos aqui
+
+Por fim planeje um prd e um readme completo do sistema para podermos produzir e tente cobrir pontos faltantes ou sugerir requisitos que ache interessante pare esse seguimento.
