@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { tournamentsRouter } from './modules/tournaments/tournaments.routes.js';
+import { registrationsRouter } from './modules/registrations/registrations.routes.js';
+import { checkinRouter } from './modules/checkin/checkin.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -40,6 +42,8 @@ const authLimiter = rateLimit({
 
 app.use('/auth', authLimiter, authRouter);
 app.use('/tournaments', tournamentsRouter);
+app.use('/registrations', registrationsRouter);
+app.use('/checkins', checkinRouter);
 
 app.use(errorHandler);
 

@@ -155,6 +155,13 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   não têm sessão de usuário para setar `app.current_role` via `withRls`,
   então conectam direto com `MIGRATE_DATABASE_URL` (role owner, bypassa
   RLS) — mesmo padrão que `prisma migrate` já usa.
+- **Módulo é por ator/proteção de rota, não por tabela do Prisma**: quando
+  duas tabelas (ou uma só) são acessadas por atores diferentes com regras
+  de autorização diferentes (ex.: `registrations`/`checkins` — player
+  mexe na própria inscrição, só admin faz checkin), cada ator ganha seu
+  próprio módulo (`modules/registrations` só `requireAuth`,
+  `modules/checkin` com `requireAuth + requireRole('ADMIN')`), mesmo que
+  os repositories de ambos leiam/escrevam nos mesmos models Prisma.
 
 ## Banco de dados local (Docker Compose)
 

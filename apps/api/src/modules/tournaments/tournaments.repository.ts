@@ -61,6 +61,17 @@ export function findTournamentById(tx: Prisma.TransactionClient, id: string) {
   return tx.tournament.findUnique({ where: { id }, include: tournamentDetailInclude });
 }
 
+// Usado pela listagem pública de torneios abertos para inscrição
+// (módulo registrations) — não confundir com listTournaments, que é a
+// listagem admin sem filtro de status.
+export function listOpenTournamentsForRegistration(tx: Prisma.TransactionClient) {
+  return tx.tournament.findMany({
+    where: { status: 'REGISTRATION_OPEN' },
+    include: tournamentListInclude,
+    orderBy: { registrationEndAt: 'asc' },
+  });
+}
+
 // Substituição completa: apaga e recria sponsors/placementRewards dentro da
 // mesma transação interativa. São configuração do torneio sem ciclo de vida
 // próprio (sem FK externa, sem histórico a preservar), então diffar por id
