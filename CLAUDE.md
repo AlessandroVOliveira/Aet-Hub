@@ -144,6 +144,17 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   Node): todo import relativo entre arquivos `.ts` precisa da extensão
   `.js` no caminho (ex.: `import app from './app.js'`), mesmo importando
   um `.ts`.
+- **Rotas com `:id`**: os tipos do Express tipam `req.params[chave]` como
+  `string | string[]` (caso geral de `ParamsDictionary`, por causa de
+  grupos de regex repetidos), mesmo numa rota simples `/:id`. Como
+  `asyncHandler` fixa o `Request` no tipo padrão (não é genérico), o jeito
+  mais simples é castar no controller (`req.params.id as string`) em vez
+  de tipar cada handler com `Request<{ id: string }>` — isso conflita com
+  a assinatura fixa de `asyncHandler`.
+- **Scripts que rodam fora de uma request HTTP** (ex.: `prisma/seed.ts`):
+  não têm sessão de usuário para setar `app.current_role` via `withRls`,
+  então conectam direto com `MIGRATE_DATABASE_URL` (role owner, bypassa
+  RLS) — mesmo padrão que `prisma migrate` já usa.
 
 ## Banco de dados local (Docker Compose)
 

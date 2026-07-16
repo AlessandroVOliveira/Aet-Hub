@@ -12,7 +12,11 @@
     "prisma:migrate": "prisma migrate dev",
     "db:up": "docker compose -f ../../docker-compose.yml up -d",
     "db:down": "docker compose -f ../../docker-compose.yml down",
-    "db:roles": "node scripts/db-roles.mjs"
+    "db:roles": "node scripts/db-roles.mjs",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
