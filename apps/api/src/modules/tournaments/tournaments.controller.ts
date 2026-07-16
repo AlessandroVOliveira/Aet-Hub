@@ -36,3 +36,8 @@ export async function deleteTournamentHandler(req: Request, res: Response): Prom
   await tournamentsService.deleteTournament(req.user!, req.params.id as string);
   res.status(204).send();
 }
+
+export async function startTournamentHandler(req: Request, res: Response): Promise<void> {
+  const bracket = await tournamentsService.startTournament(req.user!, req.params.id as string);
+  res.status(200).json({ bracket });
+}

@@ -162,6 +162,21 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   próprio módulo (`modules/registrations` só `requireAuth`,
   `modules/checkin` com `requireAuth + requireRole('ADMIN')`), mesmo que
   os repositories de ambos leiam/escrevam nos mesmos models Prisma.
+- **Broadcast via Socket.IO fora do ciclo request/response**: `services`
+  não recebem `io` por injeção de dependência — `config/socket.ts` guarda
+  a instância criada por `createSocketServer` num singleton de módulo
+  (`getSocketServer()`), para qualquer service poder emitir sem precisar
+  repassar `io` por todas as camadas. O emit é sempre best-effort (se
+  `getSocketServer()` retornar `undefined`, pula sem quebrar a request —
+  cobre scripts que rodam fora do server HTTP).
+- **Semântica de `BracketSlot`/`Match` (motor de chaveamento)**:
+  `Match.bracketSlotId` aponta para o slot de **destino** — o `BracketSlot`
+  da rodada seguinte que recebe o `registrationId` do vencedor.
+  `registrationAId`/`registrationBId` são copiados dos dois `BracketSlot`s
+  de origem (rodada atual, posições irmãs) no momento em que o `Match` é
+  criado, não derivados via join a cada leitura. Só rodada 1 tem bye (avanço
+  automático sem `Match`); da rodada 2 em diante toda vaga é sempre
+  preenchida por um `Match` real, porque `bracketSize` já é potência de 2.
 
 ## Banco de dados local (Docker Compose)
 

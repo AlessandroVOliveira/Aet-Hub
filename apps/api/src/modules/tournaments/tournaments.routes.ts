@@ -9,6 +9,7 @@ import {
   deleteTournamentHandler,
   getTournamentHandler,
   listTournamentsHandler,
+  startTournamentHandler,
   updateTournamentHandler,
 } from './tournaments.controller.js';
 
@@ -27,3 +28,4 @@ tournamentsRouter.put(
   asyncHandler(updateTournamentHandler),
 );
 tournamentsRouter.delete('/:id', asyncHandler(deleteTournamentHandler));
+tournamentsRouter.post('/:id/start', asyncHandler(startTournamentHandler));

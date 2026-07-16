@@ -2,10 +2,21 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { verifyAccessToken } from '../modules/auth/jwt.js';
 
+// Guarda a instância criada por createSocketServer para que módulos fora
+// do ciclo request/response do Express (services que precisam emitir
+// broadcast) consigam acessá-la sem depender de injeção manual por
+// camada — ver getSocketServer abaixo.
+let socketServerInstance: Server | undefined;
+
+export function getSocketServer(): Server | undefined {
+  return socketServerInstance;
+}
+
 export function createSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: { origin: true, credentials: true },
   });
+  socketServerInstance = io;
 
   const tournaments = io.of('/tournaments');
 

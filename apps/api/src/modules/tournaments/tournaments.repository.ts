@@ -98,3 +98,18 @@ export async function replaceTournament(
 export function deleteTournament(tx: Prisma.TransactionClient, id: string) {
   return tx.tournament.delete({ where: { id } });
 }
+
+export function findConfirmedCheckedInRegistrations(tx: Prisma.TransactionClient, tournamentId: string) {
+  return tx.registration.findMany({
+    where: { tournamentId, status: 'CONFIRMED', checkin: { isNot: null } },
+    select: { id: true },
+  });
+}
+
+export function updateTournamentStatus(
+  tx: Prisma.TransactionClient,
+  id: string,
+  status: TournamentStatus,
+) {
+  return tx.tournament.update({ where: { id }, data: { status } });
+}

@@ -6,6 +6,7 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { tournamentsRouter } from './modules/tournaments/tournaments.routes.js';
 import { registrationsRouter } from './modules/registrations/registrations.routes.js';
 import { checkinRouter } from './modules/checkin/checkin.routes.js';
+import { matchesRouter } from './modules/matches/matches.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/auth', authLimiter, authRouter);
 app.use('/tournaments', tournamentsRouter);
 app.use('/registrations', registrationsRouter);
 app.use('/checkins', checkinRouter);
+app.use('/matches', matchesRouter);
 
 app.use(errorHandler);
 
