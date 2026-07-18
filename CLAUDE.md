@@ -162,6 +162,16 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   próprio módulo (`modules/registrations` só `requireAuth`,
   `modules/checkin` com `requireAuth + requireRole('ADMIN')`), mesmo que
   os repositories de ambos leiam/escrevam nos mesmos models Prisma.
+  **Exceção**: quando é **um único model** cujo ciclo de vida atravessa
+  dois atores como passos acoplados da mesma ação (ex.: `Match` — ver
+  chave é amplo, registrar resultado é admin; `Redemption` — criar é do
+  player, cumprir/cancelar é do admin), auth misturada por rota **dentro**
+  do mesmo módulo (`requireRole('ADMIN')` só nas rotas que precisam,
+  padrão já usado em `matches.routes.ts`/`tournament-photos.routes.ts`/
+  `store.routes.ts`) é preferível a fragmentar em módulos menores — o
+  critério é se as duas metades formam um único fluxo/recurso (mesmo
+  módulo) ou dois fluxos de negócio independentes que só compartilham
+  dado relacionado (módulos separados).
 - **Broadcast via Socket.IO fora do ciclo request/response**: `services`
   não recebem `io` por injeção de dependência — `config/socket.ts` guarda
   a instância criada por `createSocketServer` num singleton de módulo
@@ -197,6 +207,63 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `Content-Disposition` no download. Download é servido por endpoint
   autenticado (`res.download`), nunca por `express.static` na pasta de
   uploads — mantém controle de acesso.
+- **RLS de ledger iniciado pelo próprio usuário** (ex.: débito de
+  `PointsTransaction` ao resgatar item da loja): as policies de INSERT
+  administrativas (`points_transactions_admin_insert`, exige
+  `app.current_role = 'ADMIN'`) não cobrem ação disparada pelo player.
+  Nunca "forjar" `role: 'ADMIN'` no `withRls` pra contornar — isso
+  esvaziaria RLS como camada de segurança de verdade. Em vez disso,
+  adicionar uma **segunda policy de INSERT aditiva** (policies permissivas
+  se combinam com `OR`, sem tocar na existente), o mais estreita possível:
+  tipo fixo (`type = 'REDEMPTION'`), sinal do `amount` compatível com a
+  semântica do tipo (sempre negativo pra débito), e vínculo validado via
+  `EXISTS` contra a linha "pai" que autoriza a operação (a própria
+  `Redemption`, já filtrada pela RLS dela). Esse gap não é exclusivo de
+  `points_transactions`: qualquer tabela com policy "só admin escreve"
+  pode esconder o mesmo problema se uma fatia futura passar a permitir
+  escrita pelo player — ex. `store_items.stock` (ver
+  `store_items_stock_redemption_update`, mesma lógica pro decremento de
+  estoque no resgate).
+- **RLS + relações obrigatórias do Prisma**: se uma query usa `include`/
+  `select` que atravessa uma relação **obrigatória** (`Model campo Model`,
+  sem `?`) pra uma tabela com RLS, e a linha do outro lado fica invisível
+  pela policy (mesmo sem esse campo estar pedido no `select`!), o Prisma
+  falha com `PrismaClientUnknownRequestError: Field <campo> is required to
+  return data, got null instead` em vez de simplesmente omitir o dado —
+  isso vale mesmo pra relações não pedidas explicitamente, sempre que
+  outra relação incluída depende delas internamente (ex.: pedir
+  `registrationA.user` de um `Match` falha se a `Registration` do
+  adversário existir mas o `User` dela estiver escondido por RLS). Numa
+  relação **opcional** (`Model? `), o mesmo cenário só faz o campo vir
+  `null` silenciosamente, sem erro — o que também pode mascarar um gap de
+  RLS sem avisar (foi assim que `profiles` ficou sem policy até alguém
+  notar que `displayName` do adversário sempre vinha `null`). Ao expandir
+  visibilidade entre usuários (ex. "colegas de torneio se veem"), sempre
+  auditar TODAS as tabelas atravessadas pela relação, não só a primeira.
+- **Padrão "colegas de torneio se veem"** (`registrations`, `users`,
+  `profiles`): três policies aditivas, uma por tabela, todas reaproveitando
+  a mesma função `app_current_user_tournament_ids()` (`SECURITY DEFINER`,
+  dona = `aet_hub_owner`/superuser do container). Nunca fazer um `EXISTS
+  (SELECT ... FROM registrations WHERE ...)` **direto** dentro de uma
+  policy da própria tabela `registrations` — Postgres detecta isso como
+  "infinite recursion detected in policy" (42P17) porque avaliar a
+  subquery reaciona a mesma RLS que está sendo avaliada. A função
+  `SECURITY DEFINER` quebra esse ciclo: roda com privilégio do dono
+  (bypassa RLS por completo), então a leitura interna não reaciona a
+  policy. Mesmo quando a tabela-alvo da policy é diferente de
+  `registrations` (caso de `users`/`profiles`), reaproveitar a função em
+  vez de duplicar a lógica.
+- **Concorrência em valor agregado sem coluna própria** (saldo de pontos =
+  `SUM(amount)` do ledger, sem coluna "balance" em lugar nenhum): checar
+  saldo e depois inserir um débito não é atômico por si só — duas
+  requisições concorrentes podem ler o mesmo saldo suficiente antes de
+  qualquer uma comitar. O padrão idiomático do projeto pra isso é
+  `pg_advisory_xact_lock(hashtext('<prefixo>:' || id))` logo no início da
+  transação (`store.service.ts#redeemStoreItem`) — serializa só as
+  requisições do mesmo `id` (ex. mesmo usuário), liberado sozinho no
+  commit/rollback. Diferente de decremento de estoque (`stock: {
+  decrement: 1 }` com `WHERE stock > 0`), que já é atômico via `UPDATE`
+  condicional — não precisa de lock adicional.
 
 ## Banco de dados local (Docker Compose)
 

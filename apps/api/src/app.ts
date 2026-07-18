@@ -8,6 +8,8 @@ import { registrationsRouter } from './modules/registrations/registrations.route
 import { checkinRouter } from './modules/checkin/checkin.routes.js';
 import { matchesRouter } from './modules/matches/matches.routes.js';
 import { tournamentPhotosRouter } from './modules/tournament-photos/tournament-photos.routes.js';
+import { usersRouter } from './modules/users/users.routes.js';
+import { storeRouter } from './modules/store/store.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -48,6 +50,8 @@ app.use('/registrations', registrationsRouter);
 app.use('/checkins', checkinRouter);
 app.use('/matches', matchesRouter);
 app.use('/tournament-photos', tournamentPhotosRouter);
+app.use('/users', usersRouter);
+app.use('/store', storeRouter);
 
 app.use(errorHandler);
 

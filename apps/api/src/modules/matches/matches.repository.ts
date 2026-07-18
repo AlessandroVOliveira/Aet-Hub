@@ -104,9 +104,19 @@ export function findCompletedMatchesWithRound(tx: Prisma.TransactionClient, tour
   });
 }
 
-const registrationSeatInclude = {
+// RLS de registrations libera leitura de qualquer participante do mesmo
+// torneio (policy registrations_tournament_participant_select), não só a
+// própria inscrição — por isso aqui usamos sempre `select` explícito
+// (nunca `include` bruto, que traria a linha inteira) ao ler a
+// Registration de A/B/winner: qr_code_token é o "ingresso" de checkin de
+// cada player e nunca deve ser exposto na visualização de chave/histórico
+// de outra pessoa.
+const registrationSeatSelect = {
+  id: true,
+  status: true,
+  finalPlacement: true,
   user: { select: { id: true, username: true, profile: { select: { displayName: true } } } },
-} satisfies Prisma.RegistrationInclude;
+} satisfies Prisma.RegistrationSelect;
 
 export async function findBracketByTournamentId(
   tx: Prisma.TransactionClient,
@@ -115,18 +125,33 @@ export async function findBracketByTournamentId(
   const [slots, matches] = await Promise.all([
     tx.bracketSlot.findMany({
       where: { tournamentId },
-      include: { registration: { include: registrationSeatInclude } },
+      include: { registration: { select: registrationSeatSelect } },
       orderBy: [{ round: 'asc' }, { position: 'asc' }],
     }),
     tx.match.findMany({
       where: { tournamentId },
       include: {
-        registrationA: { include: registrationSeatInclude },
-        registrationB: { include: registrationSeatInclude },
-        winner: { include: registrationSeatInclude },
+        registrationA: { select: registrationSeatSelect },
+        registrationB: { select: registrationSeatSelect },
+        winner: { select: registrationSeatSelect },
       },
       orderBy: [{ createdAt: 'asc' }],
     }),
   ]);
   return { slots, matches };
+}
+
+export function findMatchesByUserId(tx: Prisma.TransactionClient, userId: string) {
+  return tx.match.findMany({
+    where: {
+      status: 'COMPLETED',
+      OR: [{ registrationA: { userId } }, { registrationB: { userId } }],
+    },
+    include: {
+      tournament: { select: { id: true, name: true } },
+      registrationA: { select: registrationSeatSelect },
+      registrationB: { select: registrationSeatSelect },
+    },
+    orderBy: { playedAt: 'desc' },
+  });
 }
