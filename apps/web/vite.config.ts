@@ -7,9 +7,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@aet-hub/shared': path.resolve(__dirname, '../../packages/shared/src'),
     },
   },
   server: {
     port: 5173,
   },
+  envDir: path.resolve(__dirname, '../..'),
 });

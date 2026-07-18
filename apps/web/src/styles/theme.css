@@ -1,0 +1,37 @@
+:root {
+  --color-bg: #0a0a0d;
+  --color-bg-elevated: #131318;
+  --color-border: #26262e;
+  --color-text: #f2f2f5;
+  --color-text-muted: #9a9aa5;
+
+  --color-accent-red: #ff2d55;
+  --color-accent-orange: #ff8a1f;
+  --gradient-accent: linear-gradient(90deg, var(--color-accent-red), var(--color-accent-orange));
+  --color-accent-glow: rgba(255, 82, 51, 0.45);
+
+  --color-danger: #ff4d4f;
+  --color-success: #35d07f;
+
+  --font-heading: 'Rajdhani', 'Arial Narrow', sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Share Tech Mono', 'Consolas', monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  --clip-panel: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
