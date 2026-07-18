@@ -78,11 +78,40 @@ export function updateMatchResult(
   });
 }
 
+// _max.round sobre BracketSlot é sempre totalRounds (todos os slots de
+// todas as rodadas são criados de uma vez em generateBracket), então isto
+// acha a partida cujo destino é o único slot da rodada final — retorna
+// null se ela ainda não foi jogada.
+export async function findFinalMatch(tx: Prisma.TransactionClient, tournamentId: string) {
+  const { _max } = await tx.bracketSlot.aggregate({
+    where: { tournamentId },
+    _max: { round: true },
+  });
+  if (_max.round === null) return null;
+  return tx.match.findFirst({ where: { tournamentId, bracketSlot: { round: _max.round } } });
+}
+
+export function findCompletedMatchesWithRound(tx: Prisma.TransactionClient, tournamentId: string) {
+  return tx.match.findMany({
+    where: { tournamentId, status: 'COMPLETED' },
+    select: {
+      id: true,
+      registrationAId: true,
+      registrationBId: true,
+      winnerRegistrationId: true,
+      bracketSlot: { select: { round: true } },
+    },
+  });
+}
+
 const registrationSeatInclude = {
   user: { select: { id: true, username: true, profile: { select: { displayName: true } } } },
 } satisfies Prisma.RegistrationInclude;
 
-export async function findBracketByTournamentId(tx: Prisma.TransactionClient, tournamentId: string) {
+export async function findBracketByTournamentId(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+) {
   const [slots, matches] = await Promise.all([
     tx.bracketSlot.findMany({
       where: { tournamentId },

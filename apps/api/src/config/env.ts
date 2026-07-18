@@ -8,6 +8,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16, 'JWT_SECRET precisa ter pelo menos 16 caracteres'),
   JWT_EXPIRES_IN: z.string().min(1).default('1d'),
   VITE_API_URL: z.string().url().optional(),
+  UPLOAD_DIR: z.string().min(1).default('uploads'),
 });
 
 const parsed = envSchema.safeParse(process.env);

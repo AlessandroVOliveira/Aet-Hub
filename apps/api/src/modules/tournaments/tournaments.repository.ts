@@ -99,7 +99,10 @@ export function deleteTournament(tx: Prisma.TransactionClient, id: string) {
   return tx.tournament.delete({ where: { id } });
 }
 
-export function findConfirmedCheckedInRegistrations(tx: Prisma.TransactionClient, tournamentId: string) {
+export function findConfirmedCheckedInRegistrations(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+) {
   return tx.registration.findMany({
     where: { tournamentId, status: 'CONFIRMED', checkin: { isNot: null } },
     select: { id: true },
@@ -112,4 +115,46 @@ export function updateTournamentStatus(
   status: TournamentStatus,
 ) {
   return tx.tournament.update({ where: { id }, data: { status } });
+}
+
+export function findRegistrationUserIds(tx: Prisma.TransactionClient, tournamentId: string) {
+  return tx.registration.findMany({ where: { tournamentId }, select: { id: true, userId: true } });
+}
+
+export async function applyFinalPlacements(
+  tx: Prisma.TransactionClient,
+  placements: { registrationId: string; placement: number }[],
+): Promise<void> {
+  await Promise.all(
+    placements.map((placement) =>
+      tx.registration.update({
+        where: { id: placement.registrationId },
+        data: { finalPlacement: placement.placement },
+      }),
+    ),
+  );
+}
+
+export function createPointsTransactions(
+  tx: Prisma.TransactionClient,
+  data: Prisma.PointsTransactionCreateManyInput[],
+) {
+  return tx.pointsTransaction.createMany({ data });
+}
+
+// Usado pela resposta do encerramento (RF-14 pede vencedor + colocação de
+// todos os participantes).
+export function findRegistrationsWithFinalPlacement(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+) {
+  return tx.registration.findMany({
+    where: { tournamentId, finalPlacement: { not: null } },
+    select: {
+      id: true,
+      finalPlacement: true,
+      user: { select: { id: true, username: true, profile: { select: { displayName: true } } } },
+    },
+    orderBy: { finalPlacement: 'asc' },
+  });
 }

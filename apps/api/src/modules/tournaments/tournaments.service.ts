@@ -1,4 +1,6 @@
+import type { Prisma } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
+import { getSocketServer } from '../../config/socket.js';
 import { AppError } from '../../utils/app-error.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as matchesRepository from '../matches/matches.repository.js';
@@ -105,5 +107,123 @@ export async function startTournament(actor: AccessTokenPayload, id: string) {
       id,
       confirmed.map((registration) => registration.id),
     );
+  });
+}
+
+function broadcastTournamentCompleted(tournamentId: string): void {
+  const io = getSocketServer();
+  if (!io) return; // best-effort — scripts fora do server HTTP não têm socket
+  io.of('/tournaments')
+    .to(`tournament:${tournamentId}`)
+    .emit('tournament:completed', { tournamentId });
+}
+
+interface TournamentForPointsCalculation {
+  id: string;
+  name: string;
+  pointsPerWin: number;
+  pointsPerLoss: number;
+  placementRewards: { placement: number; bonusPoints: number }[];
+}
+
+// pointsPerLoss pode ser 0 — a linha MATCH_LOSS é gerada mesmo assim
+// (ledger append-only e auditável, RNF-08 pede reconstruir o saldo a
+// qualquer momento; um amount: 0 não distorce saldo nenhum, só documenta
+// que a derrota foi contabilizada).
+function buildPointsTransactionEntries(params: {
+  tournament: TournamentForPointsCalculation;
+  matchOutcomes: {
+    matchId: string;
+    registrationAId: string;
+    registrationBId: string;
+    winnerRegistrationId: string;
+  }[];
+  placements: { registrationId: string; placement: number }[];
+  userIdByRegistrationId: Map<string, string>;
+  createdByUserId: string;
+}): Prisma.PointsTransactionCreateManyInput[] {
+  const { tournament, matchOutcomes, placements, userIdByRegistrationId, createdByUserId } = params;
+  const entries: Prisma.PointsTransactionCreateManyInput[] = [];
+
+  for (const outcome of matchOutcomes) {
+    const loserRegistrationId =
+      outcome.winnerRegistrationId === outcome.registrationAId
+        ? outcome.registrationBId
+        : outcome.registrationAId;
+
+    entries.push({
+      userId: userIdByRegistrationId.get(outcome.winnerRegistrationId)!,
+      type: 'MATCH_WIN',
+      amount: tournament.pointsPerWin,
+      tournamentId: tournament.id,
+      matchId: outcome.matchId,
+      description: `Vitória em partida do torneio ${tournament.name}`,
+      createdByUserId,
+    });
+    entries.push({
+      userId: userIdByRegistrationId.get(loserRegistrationId)!,
+      type: 'MATCH_LOSS',
+      amount: tournament.pointsPerLoss,
+      tournamentId: tournament.id,
+      matchId: outcome.matchId,
+      description: `Derrota em partida do torneio ${tournament.name}`,
+      createdByUserId,
+    });
+  }
+
+  const rewardByPlacement = new Map(
+    tournament.placementRewards.map((reward) => [reward.placement, reward]),
+  );
+  for (const { registrationId, placement } of placements) {
+    const reward = rewardByPlacement.get(placement);
+    if (!reward || reward.bonusPoints <= 0) continue;
+    entries.push({
+      userId: userIdByRegistrationId.get(registrationId)!,
+      type: 'PLACEMENT',
+      amount: reward.bonusPoints,
+      tournamentId: tournament.id,
+      matchId: null,
+      description: `${placement}º lugar no torneio ${tournament.name}`,
+      createdByUserId,
+    });
+  }
+
+  return entries;
+}
+
+export async function completeTournament(actor: AccessTokenPayload, id: string) {
+  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const tournament = await tournamentsRepository.findTournamentById(tx, id);
+    if (!tournament) {
+      throw new AppError('Torneio não encontrado', 404);
+    }
+    if (tournament.status !== 'IN_PROGRESS') {
+      throw new AppError('Só é possível encerrar torneios em andamento', 409);
+    }
+
+    const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(tx, id);
+    const registrations = await tournamentsRepository.findRegistrationUserIds(tx, id);
+    const userIdByRegistrationId = new Map(
+      registrations.map((registration) => [registration.id, registration.userId]),
+    );
+
+    await tournamentsRepository.applyFinalPlacements(tx, placements);
+
+    const pointsEntries = buildPointsTransactionEntries({
+      tournament,
+      matchOutcomes,
+      placements,
+      userIdByRegistrationId,
+      createdByUserId: actor.id,
+    });
+    if (pointsEntries.length > 0) {
+      await tournamentsRepository.createPointsTransactions(tx, pointsEntries);
+    }
+
+    const completed = await tournamentsRepository.updateTournamentStatus(tx, id, 'COMPLETED');
+    const finalStandings = await tournamentsRepository.findRegistrationsWithFinalPlacement(tx, id);
+
+    broadcastTournamentCompleted(id);
+    return { tournament: completed, finalStandings };
   });
 }

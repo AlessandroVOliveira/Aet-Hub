@@ -177,6 +177,26 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   criado, não derivados via join a cada leitura. Só rodada 1 tem bye (avanço
   automático sem `Match`); da rodada 2 em diante toda vaga é sempre
   preenchida por um `Match` real, porque `bracketSize` já é potência de 2.
+- **Colocação final (eliminação simples)**: `matches/placement-calculator.ts`
+  deriva a colocação de cada `Registration` a partir de `Match.bracketSlot.round`
+  (que é a rodada de **destino**, ver item acima) — a fórmula
+  `2^(maxRound - R) + 1` é só relativa entre partidas do mesmo torneio, então
+  funciona mesmo com `R` rotulado como rodada de destino em vez de rodada
+  jogada. Empates ficam pela rodada de eliminação (dois semifinalistas
+  perdedores dividem o 3º lugar); não há critério de desempate além disso
+  nesta fase (RF-18 fica para o futuro). Resultado é persistido em
+  `Registration.finalPlacement`, calculado uma única vez no encerramento do
+  torneio (`tournaments.service.completeTournament`), não recalculado depois.
+- **Upload de arquivo (fotos de torneio, RF-15)**: `multer.memoryStorage()`,
+  nunca `diskStorage` — o service só grava em disco (`UPLOAD_DIR`, env var)
+  depois de validar a regra de negócio (torneio precisa estar `COMPLETED`),
+  evitando arquivo órfão em disco se a validação rejeitar. Nome em disco é
+  sempre gerado (`randomUUID() + extensão de uma whitelist de mimetype`),
+  nunca o nome original enviado pelo usuário — elimina path traversal e
+  colisão; o nome original só fica no banco (`originalName`) para exibição/
+  `Content-Disposition` no download. Download é servido por endpoint
+  autenticado (`res.download`), nunca por `express.static` na pasta de
+  uploads — mantém controle de acesso.
 
 ## Banco de dados local (Docker Compose)
 

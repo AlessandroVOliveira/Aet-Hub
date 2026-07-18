@@ -41,3 +41,8 @@ export async function startTournamentHandler(req: Request, res: Response): Promi
   const bracket = await tournamentsService.startTournament(req.user!, req.params.id as string);
   res.status(200).json({ bracket });
 }
+
+export async function completeTournamentHandler(req: Request, res: Response): Promise<void> {
+  const result = await tournamentsService.completeTournament(req.user!, req.params.id as string);
+  res.status(200).json(result);
+}

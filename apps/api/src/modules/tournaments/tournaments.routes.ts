@@ -5,6 +5,7 @@ import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
 import { createTournamentSchema, updateTournamentSchema } from './tournaments.schemas.js';
 import {
+  completeTournamentHandler,
   createTournamentHandler,
   deleteTournamentHandler,
   getTournamentHandler,
@@ -19,7 +20,11 @@ export const tournamentsRouter = Router();
 // fatia de inscrição/checkin.
 tournamentsRouter.use(requireAuth, requireRole('ADMIN'));
 
-tournamentsRouter.post('/', validateBody(createTournamentSchema), asyncHandler(createTournamentHandler));
+tournamentsRouter.post(
+  '/',
+  validateBody(createTournamentSchema),
+  asyncHandler(createTournamentHandler),
+);
 tournamentsRouter.get('/', asyncHandler(listTournamentsHandler));
 tournamentsRouter.get('/:id', asyncHandler(getTournamentHandler));
 tournamentsRouter.put(
@@ -29,3 +34,4 @@ tournamentsRouter.put(
 );
 tournamentsRouter.delete('/:id', asyncHandler(deleteTournamentHandler));
 tournamentsRouter.post('/:id/start', asyncHandler(startTournamentHandler));
+tournamentsRouter.post('/:id/complete', asyncHandler(completeTournamentHandler));

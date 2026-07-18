@@ -96,15 +96,16 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  profile               Profile?
-  address               Address?
-  registrations         Registration[]
-  checkinsPerformed     Checkin[]
-  pointsTransactions    PointsTransaction[] @relation("PointsTransactionUser")
-  pointsAdjustmentsMade PointsTransaction[] @relation("PointsTransactionCreatedBy")
-  redemptions           Redemption[]
-  tournamentsCreated    Tournament[]
-  auditLogs             AuditLog[]
+  profile                  Profile?
+  address                  Address?
+  registrations            Registration[]
+  checkinsPerformed        Checkin[]
+  pointsTransactions       PointsTransaction[] @relation("PointsTransactionUser")
+  pointsAdjustmentsMade    PointsTransaction[] @relation("PointsTransactionCreatedBy")
+  redemptions              Redemption[]
+  tournamentsCreated       Tournament[]
+  auditLogs                AuditLog[]
+  tournamentPhotosUploaded TournamentPhoto[]
 
   @@map("users")
 }
@@ -188,6 +189,7 @@ model Tournament {
   bracketSlots       BracketSlot[]
   matches            Match[]
   pointsTransactions PointsTransaction[]
+  photos             TournamentPhoto[]
 
   @@map("tournaments")
 }
@@ -219,15 +221,16 @@ model Sponsor {
 }
 
 model Registration {
-  id           String             @id @default(cuid())
-  tournamentId String             @map("tournament_id")
-  userId       String             @map("user_id")
-  status       RegistrationStatus @default(PENDING)
-  qrCodeToken  String             @unique @map("qr_code_token")
-  registeredAt DateTime           @default(now()) @map("registered_at")
-  cancelledAt  DateTime?          @map("cancelled_at")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  id             String             @id @default(cuid())
+  tournamentId   String             @map("tournament_id")
+  userId         String             @map("user_id")
+  status         RegistrationStatus @default(PENDING)
+  qrCodeToken    String             @unique @map("qr_code_token")
+  registeredAt   DateTime           @default(now()) @map("registered_at")
+  cancelledAt    DateTime?          @map("cancelled_at")
+  finalPlacement Int?               @map("final_placement")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   tournament   Tournament    @relation(fields: [tournamentId], references: [id])
   user         User          @relation(fields: [userId], references: [id])
@@ -374,4 +377,25 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// Fotos do evento anexadas pelo admin após o encerramento do torneio
+// (RF-15). Arquivo fica em disco local (UPLOAD_DIR); fileName é o nome
+// gerado (uuid+extensão) que existe em disco, originalName só para
+// exibição/download.
+model TournamentPhoto {
+  id               String   @id @default(cuid())
+  tournamentId     String   @map("tournament_id")
+  uploadedByUserId String   @map("uploaded_by_user_id")
+  fileName         String   @map("file_name")
+  originalName     String   @map("original_name")
+  mimeType         String   @map("mime_type")
+  sizeBytes        Int      @map("size_bytes")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+  uploadedBy User       @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([tournamentId])
+  @@map("tournament_photos")
 }

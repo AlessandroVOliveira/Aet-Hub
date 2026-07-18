@@ -6,6 +6,8 @@ import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as tournamentsRepository from '../tournaments/tournaments.repository.js';
 import * as matchesRepository from './matches.repository.js';
 import * as bracketGenerator from './bracket-generator.js';
+import * as placementCalculator from './placement-calculator.js';
+import type { PlacementResult, MatchOutcome } from './placement-calculator.js';
 import type { RecordMatchResultInput } from './matches.schemas.js';
 
 function broadcastBracketUpdated(tournamentId: string): void {
@@ -100,7 +102,11 @@ export async function recordMatchResult(
     });
 
     const targetSlot = await matchesRepository.findBracketSlotById(tx, match.bracketSlotId);
-    await matchesRepository.updateBracketSlotRegistration(tx, match.bracketSlotId, input.winnerRegistrationId);
+    await matchesRepository.updateBracketSlotRegistration(
+      tx,
+      match.bracketSlotId,
+      input.winnerRegistrationId,
+    );
     await bracketGenerator.maybeCreateNextRoundMatch(
       tx,
       match.tournamentId,
@@ -111,4 +117,39 @@ export async function recordMatchResult(
     broadcastBracketUpdated(match.tournamentId);
     return updatedMatch;
   });
+}
+
+export interface FinalPlacementsResult {
+  placements: PlacementResult[];
+  matchOutcomes: MatchOutcome[];
+}
+
+// Chamada por tournaments.service.completeTournament, já dentro da
+// transação aberta pelo withRls dele — não abre a própria transação
+// (mesmo padrão de generateBracket ser chamado por startTournament).
+export async function computeFinalPlacements(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+): Promise<FinalPlacementsResult> {
+  const finalMatch = await matchesRepository.findFinalMatch(tx, tournamentId);
+  if (!finalMatch || finalMatch.status !== 'COMPLETED') {
+    throw new AppError(
+      'A partida final ainda não foi registrada — não é possível encerrar o torneio',
+      409,
+    );
+  }
+
+  const completed = await matchesRepository.findCompletedMatchesWithRound(tx, tournamentId);
+  const matchOutcomes: MatchOutcome[] = completed.map((match) => ({
+    matchId: match.id,
+    round: match.bracketSlot.round,
+    registrationAId: match.registrationAId!,
+    registrationBId: match.registrationBId!,
+    winnerRegistrationId: match.winnerRegistrationId!,
+  }));
+
+  return {
+    placements: placementCalculator.computePlacements(matchOutcomes),
+    matchOutcomes,
+  };
 }
