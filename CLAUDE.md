@@ -216,3 +216,17 @@ PRIVILEGES` só vale para tabelas criadas depois dele, então não
 O PRD completo está em `docs/PRD.md` (requisitos funcionais/não-funcionais,
 modelo de dados conceitual, fluxos principais, roadmap por fases). O
 `README.md` na raiz cobre como rodar o projeto localmente.
+
+`docs/aethub.pdf` é a referência visual/estética para o frontend (ainda não
+iniciado): tema escuro (quase preto) com acentos em gradiente vermelho/
+laranja neon, painéis com cantos cortados/hexagonais e borda brilhante,
+ícones pixel art (8-bit) para conquistas/XP/loot combinados com painéis
+glassmorphic mais modernos para destaques de feature, tipografia
+condensada/bold em telas de título e fonte estilo LED/monoespaçada para
+números (leaderboard). Mascote: lobo com coroa, logo "Alegrete E-Sports".
+O roadmap do deck (Level 1 MVP → Level 4 Integração) cita explicitamente
+**PIX** como o método de pagamento planejado para inscrição paga — hoje o
+produto não processa pagamento real (`entryFeeCents`/`potPercentage` são
+só informativos até essa integração existir) — e também torneios em
+equipe/dupla e integração com VOD/streaming como itens de fase futura,
+nenhum dos dois modelados no schema atual.
