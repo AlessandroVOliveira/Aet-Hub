@@ -15,9 +15,13 @@ import { errorHandler } from './middlewares/error-handler.middleware.js';
 const app = express();
 
 app.use(helmet());
+// `origin: true` reflete o Origin da requisição (necessário com
+// `credentials: true`, já que `cors` não aceita '*' combinado com
+// credenciais). Não há hoje um env var de allowlist de frontend
+// (`CORS_ORIGIN`/`FRONTEND_URL`) — API e frontend rodam só em dev local.
 app.use(
   cors({
-    origin: process.env.VITE_API_URL ? undefined : true,
+    origin: true,
     credentials: true,
   }),
 );
