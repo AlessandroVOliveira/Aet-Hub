@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './AppLayout.module.css';
 
@@ -16,9 +16,16 @@ export function AppLayout() {
       <header className={styles.header}>
         <h1 className={styles.logo}>AET HUB</h1>
         {user && (
-          <button type="button" className={styles.logoutButton} onClick={handleLogout}>
-            Sair
-          </button>
+          <div className={styles.actions}>
+            <nav>
+              <Link to="/torneios" className={styles.navLink}>
+                Torneios
+              </Link>
+            </nav>
+            <button type="button" className={styles.logoutButton} onClick={handleLogout}>
+              Sair
+            </button>
+          </div>
         )}
       </header>
       <main className={styles.content}>

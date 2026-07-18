@@ -16,6 +16,7 @@ interface SessionUser {
 
 interface AuthContextValue {
   user: SessionUser | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (token: string) => void;
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     user,
+    token,
     isAuthenticated,
     isLoading: !!token && isLoading,
     login,
