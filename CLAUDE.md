@@ -313,6 +313,46 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   true`, que não aceita `'*'`). Não existe hoje um env var de allowlist
   de frontend (`CORS_ORIGIN`/`FRONTEND_URL`); API e frontend rodam só em
   dev local por enquanto.
+- **Formulário com arrays dinâmicos**: `react-hook-form` (decisão tomada
+  na Fatia 2b, primeira lib de formulário do projeto — telas mais simples
+  como `RegisterPage` continuam com `useState` manual, sem retrofit).
+  `useFieldArray` para as listas dinâmicas (ex. apoiadores/premiação por
+  colocação de `TournamentForm`). Sem `@hookform/resolvers`/zod client-side
+  — validação cross-field fica em função pura própria (ex.
+  `utils/validate-tournament-form.ts`), mesmo padrão de função manual já
+  usado em `RegisterPage`, alimentando o mesmo helper de mapeamento pra
+  `setError` (`utils/apply-issues-to-form.ts`) que também consome
+  `ApiError.issues` do backend — um único código pra pintar erro de campo
+  seja a origem client ou server.
+- **`Prisma Decimal` em resposta JSON vira string**: `Decimal.toJSON()`
+  serializa como string (ex. `"12.50"`), mesmo quando o schema de escrita
+  espera `number` no body (caso de `TournamentPlacementReward.
+  potPercentage`, único campo `Decimal` do schema). Tipar o shape de
+  leitura com o campo `string` e o shape de escrita com `number` (dois
+  tipos distintos, ex. `PlacementReward`/`PlacementRewardInput`) força o
+  `Number(...)` nos pontos certos do frontend em vez de deixar passar
+  batom.
+- **RHF + `<select>` com valor vindo de uma query assíncrona (ex. picker
+  de jogo)**: `defaultValues` do `useForm` é capturado só uma vez no mount
+  — se o componente montar antes da lista de opções (`useGames()`) estar
+  carregada, o `<select>` não acha a `<option>` correspondente e o campo
+  fica vazio mesmo com o dado certo no estado interno do RHF (bug sutil,
+  sem erro nenhum, só o dropdown aparentando "esquecer" o valor). Mesma
+  lógica já documentada pra "montar só depois que os dados existem" (ver
+  fluxo de edição abaixo) se aplica a **toda** fonte de dado usada pra
+  montar `defaultValues`, não só o recurso principal — por isso
+  `AdminTournamentFormPage` carrega `useGames()` no nível da página e só
+  monta `<TournamentForm>` depois que jogos (e, em modo edição, o torneio)
+  já chegaram, em vez de `TournamentForm` chamar `useGames()` internamente.
+- **Instalar dependência nova de frontend com o dev server do Vite já
+  rodando**: reinicie o processo (`npm run dev --workspace apps/web`) e
+  limpe `apps/web/node_modules/.vite` depois do `npm install` — só assim
+  o Vite repete o pre-bundling (`optimizeDeps`) da dependência nova de
+  forma limpa. Sem isso, um F5/reload no meio de uma sessão de dev pode
+  disparar um full-reload automático do Vite bem no meio de uma request
+  em andamento (ex. `GET /users/me` da reidratação de sessão), abortando-a
+  e derrubando a sessão — não é bug de autenticação, é artefato do dev
+  server ficando defasado em relação ao `package.json`.
 
 ## Banco de dados local (Docker Compose)
 
@@ -326,6 +366,12 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   não só via `ALTER DEFAULT PRIVILEGES` em `roles.sql` — `ALTER DEFAULT
 PRIVILEGES` só vale para tabelas criadas depois dele, então não
   retroagiria para tabelas recriadas por um reset.
+- `npm run db:seed --workspace apps/api` (`apps/api/prisma/seed.ts`) além
+  dos 3 jogos de exemplo, cria um admin de teste (`admin`/`admin123` por
+  padrão, overridável via `ADMIN_SEED_USERNAME`/`ADMIN_SEED_PASSWORD`/
+  `ADMIN_SEED_EMAIL`) — único jeito de conseguir uma conta `ADMIN` sem
+  `UPDATE` manual no Postgres, já que o cadastro público sempre cria
+  `PLAYER` de propósito (RLS impede escalonamento).
 
 ## Documentação de produto
 
