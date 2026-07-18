@@ -265,6 +265,55 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   decrement: 1 }` com `WHERE stock > 0`), que já é atômico via `UPDATE`
   condicional — não precisa de lock adicional.
 
+## Padrões do frontend (apps/web)
+
+- **Estilização**: CSS Modules + variáveis CSS (não Tailwind, decisão
+  tomada na Fatia 1 do frontend). Tokens de tema (cores, gradiente,
+  tipografia, espaçamento, `--clip-panel` para os cantos cortados do
+  visual retro) ficam em `src/styles/theme.css`; `src/styles/global.css`
+  faz o reset básico. Cada componente/página tem seu `Nome.module.css`
+  ao lado do `.tsx`.
+- **Data fetching**: TanStack Query (`@tanstack/react-query`) para toda
+  chamada à API — mutations para escrita, `useQuery` para leitura/cache.
+  Fetch wrapper único em `src/services/http.ts` (`apiRequest`/`ApiError`,
+  base `import.meta.env.VITE_API_URL`); cada domínio ganha seu arquivo em
+  `src/services/` (ex. `auth.ts`), nunca `fetch` direto num componente.
+- **Estado de autenticação**: token JWT em `localStorage`
+  (`'aet-hub:token'`), nunca em cookie (a API não emite cookie, só
+  `Authorization: Bearer` — ver abaixo). Contexto único em `src/hooks/
+  useAuth.tsx` (`AuthProvider`/`useAuth`), populado via `GET /users/me`
+  com TanStack Query ao montar o app se houver token salvo. **`GET
+  /users/me` não retorna `role`** (só `GET /auth/me`, que por sua vez
+  não retorna perfil completo) — o frontend decodifica o `role` direto
+  do payload do próprio JWT (`src/utils/jwt.ts#decodeJwtPayload`, sem
+  verificar assinatura) em vez de reconciliar dois endpoints; isso é só
+  para UI (esconder/mostrar elementos), a autorização de verdade
+  continua sendo sempre o middleware do backend. Evite `setState`
+  síncrono dentro de `useEffect` para reagir a falha de query (dispara
+  `react-hooks/set-state-in-effect`) — prefira tratar o efeito colateral
+  (ex. limpar `localStorage`) dentro da própria `queryFn`/mutation e
+  derivar o estado exposto (`isAuthenticated`) direto do resultado da
+  query.
+- **Rota protegida**: componente wrapper (`src/components/
+  ProtectedRoute.tsx`) baseado em `<Outlet>` do `react-router-dom` v6,
+  não em loaders — redireciona pra `/login` preservando
+  `location.state.from` para retomar a rota original após o login.
+- **`packages/shared` fica vazio por enquanto**: tipos de request/
+  response da API (ex. `RegisterPayload`, `LoginResponse`) ficam locais
+  em `apps/web/src/types/` até o backend também precisar importar os
+  mesmos contratos — promover pra `packages/shared` antes disso seria
+  abstração especulativa sem segundo consumidor real.
+- **Vite não lê o `.env` da raiz do monorepo por padrão**: `vite.config.ts`
+  precisa de `envDir` apontando pra raiz (`path.resolve(__dirname,
+  '../..')`), mesmo padrão que `apps/api/src/load-env.ts` já usa pro
+  backend — sem isso, `import.meta.env.VITE_API_URL` fica `undefined`
+  em dev mesmo com a variável definida no `.env` raiz.
+- **CORS em dev** (`apps/api/src/app.ts`): `origin: true` sempre
+  (reflete o `Origin` da requisição — obrigatório com `credentials:
+  true`, que não aceita `'*'`). Não existe hoje um env var de allowlist
+  de frontend (`CORS_ORIGIN`/`FRONTEND_URL`); API e frontend rodam só em
+  dev local por enquanto.
+
 ## Banco de dados local (Docker Compose)
 
 - `npm run db:up --workspace apps/api` sobe o Postgres.
