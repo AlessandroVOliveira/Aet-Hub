@@ -1,9 +1,7 @@
-import type { BracketType, TiebreakerRule } from '@/types/tournament';
+import type { BracketType, TiebreakerRule, TournamentStatus } from '@/types/tournament';
 
 export function formatCurrencyFromCents(cents: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-    cents / 100,
-  );
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 }
 
 export function formatDate(iso: string): string {
@@ -24,4 +22,14 @@ export const bracketTypeLabels: Record<BracketType, string> = {
 export const tiebreakerRuleLabels: Record<TiebreakerRule, string> = {
   HEAD_TO_HEAD: 'Confronto direto',
   WIN_BALANCE: 'Saldo de vitórias',
+};
+
+export const tournamentStatusLabels: Record<TournamentStatus, string> = {
+  DRAFT: 'Rascunho',
+  REGISTRATION_OPEN: 'Inscrições abertas',
+  REGISTRATION_CLOSED: 'Inscrições encerradas',
+  CHECKIN_OPEN: 'Check-in aberto',
+  IN_PROGRESS: 'Em andamento',
+  COMPLETED: 'Encerrado',
+  CANCELLED: 'Cancelado',
 };

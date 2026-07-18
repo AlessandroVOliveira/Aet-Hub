@@ -21,6 +21,11 @@ export function AppLayout() {
               <Link to="/torneios" className={styles.navLink}>
                 Torneios
               </Link>
+              {user.role === 'ADMIN' && (
+                <Link to="/admin/torneios" className={styles.navLink}>
+                  Admin
+                </Link>
+              )}
             </nav>
             <button type="button" className={styles.logoutButton} onClick={handleLogout}>
               Sair

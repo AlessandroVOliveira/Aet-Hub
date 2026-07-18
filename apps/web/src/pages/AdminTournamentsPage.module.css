@@ -1,0 +1,115 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-family: var(--font-heading);
+  margin: 0;
+}
+
+.newButton {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--gradient-accent);
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.errorBanner {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+}
+
+.emptyState {
+  color: var(--color-text-muted);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-panel);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.table th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.statusBadge {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.statusBadge[data-status='REGISTRATION_OPEN'],
+.statusBadge[data-status='CHECKIN_OPEN'] {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.statusBadge[data-status='IN_PROGRESS'] {
+  border-color: var(--color-accent-orange);
+  color: var(--color-accent-orange);
+}
+
+.statusBadge[data-status='CANCELLED'] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.actions a {
+  color: var(--color-accent-orange);
+}
+
+.actionButton,
+.destructiveButton {
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.actionButton:disabled,
+.destructiveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.destructiveButton {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
