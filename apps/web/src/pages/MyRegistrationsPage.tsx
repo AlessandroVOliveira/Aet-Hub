@@ -56,6 +56,17 @@ export function MyRegistrationsPage() {
                 Evento em {formatDate(registration.tournament.eventStartAt)}
               </p>
 
+              {(registration.tournament.status === 'IN_PROGRESS' ||
+                registration.tournament.status === 'COMPLETED') && (
+                <Link
+                  to={`/torneios/${registration.tournament.id}/chaveamento`}
+                  state={{ tournamentName: registration.tournament.name }}
+                  className={styles.bracketLink}
+                >
+                  Ver chaveamento
+                </Link>
+              )}
+
               {registration.status === 'CONFIRMED' && (
                 <>
                   {registration.checkin ? (

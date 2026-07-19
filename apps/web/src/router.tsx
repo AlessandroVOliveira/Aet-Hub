@@ -7,6 +7,7 @@ import { RegisterPage } from '@/pages/RegisterPage';
 import { HomePage } from '@/pages/HomePage';
 import { TournamentsPage } from '@/pages/TournamentsPage';
 import { TournamentDetailPage } from '@/pages/TournamentDetailPage';
+import { BracketPage } from '@/pages/BracketPage';
 import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
 import { AdminTournamentsPage } from '@/pages/AdminTournamentsPage';
 import { AdminTournamentFormPage } from '@/pages/AdminTournamentFormPage';
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
           { path: '/', element: <HomePage /> },
           { path: '/torneios', element: <TournamentsPage /> },
           { path: '/torneios/:id', element: <TournamentDetailPage /> },
+          { path: '/torneios/:id/chaveamento', element: <BracketPage /> },
           { path: '/minhas-inscricoes', element: <MyRegistrationsPage /> },
           {
             element: <AdminRoute />,

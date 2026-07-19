@@ -97,6 +97,14 @@ export function AdminTournamentsPage() {
                     {tournament.status !== 'DRAFT' && tournament.status !== 'CANCELLED' && (
                       <Link to={`/admin/torneios/${tournament.id}/checkin`}>Checkin</Link>
                     )}
+                    {(tournament.status === 'IN_PROGRESS' || tournament.status === 'COMPLETED') && (
+                      <Link
+                        to={`/torneios/${tournament.id}/chaveamento`}
+                        state={{ tournamentName: tournament.name }}
+                      >
+                        Chaveamento
+                      </Link>
+                    )}
                     {(QUICK_STATUS_ACTIONS[tournament.status] ?? []).map((action) => (
                       <button
                         key={action.next}
