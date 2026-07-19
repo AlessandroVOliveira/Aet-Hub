@@ -94,6 +94,9 @@ export function AdminTournamentsPage() {
                   <td>{formatDate(tournament.eventStartAt)}</td>
                   <td className={styles.actions}>
                     <Link to={`/admin/torneios/${tournament.id}/editar`}>Editar</Link>
+                    {tournament.status !== 'DRAFT' && tournament.status !== 'CANCELLED' && (
+                      <Link to={`/admin/torneios/${tournament.id}/checkin`}>Checkin</Link>
+                    )}
                     {(QUICK_STATUS_ACTIONS[tournament.status] ?? []).map((action) => (
                       <button
                         key={action.next}

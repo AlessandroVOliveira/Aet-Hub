@@ -1,3 +1,5 @@
+import type { CheckinMethod } from '@/types/checkin';
+import type { RegistrationStatus } from '@/types/registration';
 import type { BracketType, TiebreakerRule, TournamentStatus } from '@/types/tournament';
 
 export function formatCurrencyFromCents(cents: number): string {
@@ -32,4 +34,16 @@ export const tournamentStatusLabels: Record<TournamentStatus, string> = {
   IN_PROGRESS: 'Em andamento',
   COMPLETED: 'Encerrado',
   CANCELLED: 'Cancelado',
+};
+
+export const registrationStatusLabels: Record<RegistrationStatus, string> = {
+  PENDING: 'Pendente',
+  CONFIRMED: 'Confirmada',
+  CANCELLED: 'Cancelada',
+  WAITLISTED: 'Lista de espera',
+};
+
+export const checkinMethodLabels: Record<CheckinMethod, string> = {
+  MANUAL_CODE: 'Código manual',
+  QR_CODE: 'QR Code',
 };

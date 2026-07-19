@@ -21,6 +21,9 @@ export function AppLayout() {
               <Link to="/torneios" className={styles.navLink}>
                 Torneios
               </Link>
+              <Link to="/minhas-inscricoes" className={styles.navLink}>
+                Minhas inscrições
+              </Link>
               {user.role === 'ADMIN' && (
                 <Link to="/admin/torneios" className={styles.navLink}>
                   Admin

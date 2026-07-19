@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useOpenTournaments } from '@/hooks/useOpenTournaments';
+import { useMyRegistrations } from '@/hooks/useMyRegistrations';
+import { useCreateRegistration } from '@/hooks/useRegistrationMutations';
 import { ApiError } from '@/services/http';
 import {
   bracketTypeLabels,
@@ -12,6 +15,9 @@ import styles from './TournamentDetailPage.module.css';
 export function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, isError, error } = useOpenTournaments();
+  const { data: myRegistrationsData } = useMyRegistrations();
+  const createRegistration = useCreateRegistration();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (isLoading) return <p>Carregando...</p>;
 
@@ -24,6 +30,25 @@ export function TournamentDetailPage() {
   }
 
   const tournament = data?.tournaments.find((item) => item.id === id);
+
+  const alreadyRegistered = myRegistrationsData?.registrations.some(
+    (registration) => registration.tournamentId === id && registration.status === 'CONFIRMED',
+  );
+
+  function handleRegister() {
+    if (!tournament) return;
+    setActionError(null);
+    createRegistration.mutate(
+      { tournamentId: tournament.id },
+      {
+        onError: (mutationError) => {
+          setActionError(
+            mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado',
+          );
+        },
+      },
+    );
+  }
 
   if (!tournament) {
     return (
@@ -83,6 +108,23 @@ export function TournamentDetailPage() {
         <p className={styles.comingSoonNote}>
           Apoiadores e premiação por colocação aparecem em breve.
         </p>
+
+        {actionError && <p className={styles.errorBanner}>{actionError}</p>}
+
+        {alreadyRegistered ? (
+          <Link to="/minhas-inscricoes" className={styles.backLink}>
+            Você já está inscrito — ver em Minhas inscrições
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={styles.registerButton}
+            disabled={createRegistration.isPending}
+            onClick={handleRegister}
+          >
+            Inscrever-se
+          </button>
+        )}
       </div>
     </section>
   );

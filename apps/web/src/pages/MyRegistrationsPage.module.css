@@ -1,0 +1,95 @@
+.title {
+  font-family: var(--font-heading);
+}
+
+.errorBanner {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+}
+
+.emptyState {
+  color: var(--color-text-muted);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.card {
+  padding: var(--space-3);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-panel);
+  color: var(--color-text);
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading);
+}
+
+.cardStatus {
+  display: inline-block;
+  margin: 0 0 var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.cardStatus[data-status='CONFIRMED'] {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.cardStatus[data-status='CANCELLED'] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.cardDetail {
+  margin: 0 0 var(--space-2);
+  font-size: 0.875rem;
+}
+
+.qrWrapper {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: #fff;
+  border-radius: var(--radius-sm);
+}
+
+.code {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  word-break: break-all;
+  text-align: center;
+}
+
+.cancelButton {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-danger);
+  background: var(--color-bg);
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.cancelButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

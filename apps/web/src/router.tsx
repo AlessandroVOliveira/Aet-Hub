@@ -7,8 +7,10 @@ import { RegisterPage } from '@/pages/RegisterPage';
 import { HomePage } from '@/pages/HomePage';
 import { TournamentsPage } from '@/pages/TournamentsPage';
 import { TournamentDetailPage } from '@/pages/TournamentDetailPage';
+import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
 import { AdminTournamentsPage } from '@/pages/AdminTournamentsPage';
 import { AdminTournamentFormPage } from '@/pages/AdminTournamentFormPage';
+import { AdminCheckinPage } from '@/pages/AdminCheckinPage';
 
 export const router = createBrowserRouter([
   {
@@ -22,12 +24,14 @@ export const router = createBrowserRouter([
           { path: '/', element: <HomePage /> },
           { path: '/torneios', element: <TournamentsPage /> },
           { path: '/torneios/:id', element: <TournamentDetailPage /> },
+          { path: '/minhas-inscricoes', element: <MyRegistrationsPage /> },
           {
             element: <AdminRoute />,
             children: [
               { path: '/admin/torneios', element: <AdminTournamentsPage /> },
               { path: '/admin/torneios/novo', element: <AdminTournamentFormPage /> },
               { path: '/admin/torneios/:id/editar', element: <AdminTournamentFormPage /> },
+              { path: '/admin/torneios/:id/checkin', element: <AdminCheckinPage /> },
             ],
           },
         ],
