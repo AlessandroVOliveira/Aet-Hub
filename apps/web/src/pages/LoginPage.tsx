@@ -4,7 +4,9 @@ import { useMutation } from '@tanstack/react-query';
 import { login as loginRequest } from '@/services/auth';
 import { ApiError } from '@/services/http';
 import { useAuth } from '@/hooks/useAuth';
-import styles from './LoginPage.module.css';
+import { AuthLayout } from '@/components/auth/AuthLayout';
+import { Field } from '@/components/ui/Field';
+import { Banner } from '@/components/ui/Banner';
 
 interface LocationState {
   from?: { pathname: string };
@@ -34,49 +36,47 @@ export function LoginPage() {
   }
 
   return (
-    <div className={styles.wrapper}>
-      <h2 className={styles.title}>Entrar</h2>
-
-      {state?.registered && (
-        <p className={styles.successBanner}>Cadastro realizado — faça login.</p>
-      )}
+    <AuthLayout eyebrow="ACESSO_PLAYER" title="ENTRAR" accent="NO CONSOLE">
+      {state?.registered && <Banner variant="success">Cadastro realizado — faça login.</Banner>}
 
       {mutation.isError && (
-        <p className={styles.errorBanner}>
+        <Banner variant="error">
           {mutation.error instanceof ApiError ? mutation.error.message : 'Erro inesperado'}
-        </p>
+        </Banner>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <div className={styles.field}>
-          <label htmlFor="username">Usuário</label>
-          <input
-            id="username"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            autoComplete="username"
-          />
-        </div>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <Field
+          label="USUÁRIO"
+          id="username"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          autoComplete="username"
+        />
+        <Field
+          label="SENHA"
+          id="password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="current-password"
+        />
 
-        <div className={styles.field}>
-          <label htmlFor="password">Senha</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-          />
-        </div>
-
-        <button type="submit" className={styles.submitButton} disabled={mutation.isPending}>
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="w-full bg-ember hover:bg-ember-glow disabled:opacity-60 disabled:cursor-not-allowed text-white font-display py-3 tracking-widest uppercase italic transition-colors"
+        >
           {mutation.isPending ? 'Entrando...' : 'Entrar'}
         </button>
-      </form>
 
-      <p className={styles.footerLink}>
-        Não tem conta? <Link to="/cadastro">Cadastre-se</Link>
-      </p>
-    </div>
+        <p className="text-xs text-silver-muted text-center pt-4">
+          Novo por aqui?{' '}
+          <Link to="/cadastro" className="text-ember hover:underline font-bold uppercase">
+            Criar conta
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 }

@@ -267,12 +267,53 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
 
 ## Padrões do frontend (apps/web)
 
-- **Estilização**: CSS Modules + variáveis CSS (não Tailwind, decisão
-  tomada na Fatia 1 do frontend). Tokens de tema (cores, gradiente,
-  tipografia, espaçamento, `--clip-panel` para os cantos cortados do
-  visual retro) ficam em `src/styles/theme.css`; `src/styles/global.css`
-  faz o reset básico. Cada componente/página tem seu `Nome.module.css`
-  ao lado do `.tsx`.
+- **Estilização**: Tailwind v4 (`@tailwindcss/vite`), decisão da Fatia 5 que
+  substitui CSS Modules (escolha original da Fatia 1) — motivo: coesão com o
+  guia visual gerado no Lovable (`src-lovable/`, referência de aparência a
+  partir do PRD/`docs/aethub.pdf`), cuja stack já era Tailwind v4. Tokens de
+  tema (paleta `navy-dark`/`navy-light`/`ember`/`ember-glow`/`silver`/
+  `silver-muted`, fontes Anton/JetBrains Mono/Inter, `@utility clip-panel`
+  para os cantos cortados do visual retro) ficam em `src/styles/theme.css`
+  via `@theme`; `src/styles/global.css` faz o reset básico. Componentes
+  pequenos e reutilizáveis (não a lib inteira de UI do Lovable/shadcn —
+  sem uso real ainda de dropdown/dialog/etc.) ficam em
+  `src/components/ui/` (`Field`, `Banner`, `Panel`, `PageHeader`,
+  `StatusChip`). CSS Modules remanescentes de páginas ainda não retelhadas
+  são removidos conforme cada tela é migrada — não é um estado permanente
+  de dois sistemas coexistindo.
+- **Estrutura de layout de página**: `AppLayout` (`src/components/layout/
+  AppLayout.tsx`) envolve todas as rotas, mas só desenha a casca (sidebar
+  desktop / drawer mobile, saldo de pontos via `useMyWallet`) quando há
+  usuário autenticado — sem usuário, renderiza só `<Outlet />`, deixando
+  rotas públicas (login/cadastro) usarem seu próprio layout em tela cheia
+  (`src/components/auth/AuthLayout.tsx`, split-screen com o hero da
+  marca). Toda rota nova que for um "destino de produto" (não um passo de
+  fluxo, tipo checkin) entra em `NAV_ITEMS` dentro de `AppLayout.tsx`;
+  itens cujo **backend** ainda não existe (hoje Ranking, Comunidade, Chat)
+  usam a flag `comingSoon` — aparecem no menu desabilitados com selo "em
+  breve" em vez de sumirem. Uma tela com backend pronto mas ainda sem
+  frontend (ex. Loja, Perfil) fica de fora do nav até existir de fato —
+  link morto é pior que omitir.
+- **Dois padrões de campo de formulário, não misturar**: formulários
+  simples com `useState` controlado (Login, Cadastro) usam o componente
+  `Field` (`src/components/ui/Field.tsx`: label + input + erro,
+  value/onChange controlados); formulários com `react-hook-form`
+  (`TournamentForm`) registram inputs nativos direto via
+  `{...register(...)}` e reaproveitam as constantes locais
+  `labelClass`/`inputClass` do próprio arquivo (`Field` é controlado,
+  incompatível com `register`). Erro de validação em ambos os casos usa a
+  mesma classe visual (`text-ember`, ver prop `error` do `Field` e a
+  constante `errorClass` em `TournamentForm`).
+- **Chip de status por enum**: todo novo enum de status que precisar de
+  indicador visual ganha um mapeamento de tom (`accent`/`live`/`muted`) ao
+  lado do mapeamento de label já existente em `src/utils/format.ts` (ver
+  `tournamentStatusTone` ao lado de `tournamentStatusLabels`), renderizado
+  com `StatusChip` (`src/components/ui/StatusChip.tsx`) — não criar chip
+  ad-hoc por tela.
+- **Ícones**: `lucide-react` (mesma lib do guia do Lovable) — reaproveitar
+  o mesmo ícone por conceito (ex. `Trophy` para torneios) quando a tela
+  nova tiver equivalente em `src-lovable/`, em vez de escolher um novo por
+  preferência pessoal.
 - **Data fetching**: TanStack Query (`@tanstack/react-query`) para toda
   chamada à API — mutations para escrita, `useQuery` para leitura/cache.
   Fetch wrapper único em `src/services/http.ts` (`apiRequest`/`ApiError`,
@@ -379,13 +420,28 @@ O PRD completo está em `docs/PRD.md` (requisitos funcionais/não-funcionais,
 modelo de dados conceitual, fluxos principais, roadmap por fases). O
 `README.md` na raiz cobre como rodar o projeto localmente.
 
-`docs/aethub.pdf` é a referência visual/estética para o frontend (ainda não
-iniciado): tema escuro (quase preto) com acentos em gradiente vermelho/
-laranja neon, painéis com cantos cortados/hexagonais e borda brilhante,
-ícones pixel art (8-bit) para conquistas/XP/loot combinados com painéis
-glassmorphic mais modernos para destaques de feature, tipografia
+`docs/aethub.pdf` é a referência visual/estética **original** do produto
+(deck de design): tema escuro (quase preto) com acentos em gradiente
+vermelho/laranja neon, painéis com cantos cortados/hexagonais e borda
+brilhante, ícones pixel art (8-bit) para conquistas/XP/loot combinados com
+painéis glassmorphic mais modernos para destaques de feature, tipografia
 condensada/bold em telas de título e fonte estilo LED/monoespaçada para
 números (leaderboard). Mascote: lobo com coroa, logo "Alegrete E-Sports".
+
+`src-lovable/` é um layout gerado no Lovable a partir só do PRD (sem
+nenhuma noção do backend real) — é a referência visual **concreta** que o
+`apps/web` de fato implementa desde a Fatia 5, numa interpretação própria
+do deck acima: paleta navy/ember/silver (não o "vermelho/laranja neon"
+literal do deck), tipografia Anton/JetBrains Mono/Inter, sem os ícones
+pixel art 8-bit. Não é um workspace do monorepo nem é importado por
+`apps/web` — é só a fonte de onde os tokens/telas foram portados
+manualmente, tela por tela (ver "Padrões do frontend" acima). Ele também
+desenha telas/ações sem contrapartida no backend hoje (chat, ranking,
+comunidade, XP/nível/conquistas, login social); o tratamento disso no
+frontend real está descrito em "Estrutura de layout de página" acima —
+nunca copiar uma tela do Lovable 1:1 sem antes checar se a rota/campo
+correspondente existe na API.
+
 O roadmap do deck (Level 1 MVP → Level 4 Integração) cita explicitamente
 **PIX** como o método de pagamento planejado para inscrição paga — hoje o
 produto não processa pagamento real (`entryFeeCents`/`potPercentage` são

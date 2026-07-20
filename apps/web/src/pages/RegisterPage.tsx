@@ -4,7 +4,9 @@ import { useMutation } from '@tanstack/react-query';
 import { register as registerRequest } from '@/services/auth';
 import { ApiError } from '@/services/http';
 import type { RegisterPayload } from '@/types/auth';
-import styles from './RegisterPage.module.css';
+import { AuthLayout } from '@/components/auth/AuthLayout';
+import { Field } from '@/components/ui/Field';
+import { Banner } from '@/components/ui/Banner';
 
 type FormValues = RegisterPayload;
 type FieldErrors = Partial<Record<keyof FormValues, string>>;
@@ -98,112 +100,102 @@ export function RegisterPage() {
       : null;
 
   return (
-    <div className={styles.wrapper}>
-      <h2 className={styles.title}>Criar conta</h2>
+    <AuthLayout eyebrow="NEW_PLAYER" title="CRIAR" accent="CONTA">
+      {generalError && <Banner variant="error">{generalError}</Banner>}
 
-      {generalError && <p className={styles.errorBanner}>{generalError}</p>}
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <Field
+          label="USUÁRIO"
+          id="username"
+          value={values.username}
+          onChange={(event) => updateField('username', event.target.value)}
+          error={fieldErrors.username}
+        />
 
-      <form onSubmit={handleSubmit}>
-        <div className={styles.field}>
-          <label htmlFor="username">Usuário</label>
-          <input
-            id="username"
-            value={values.username}
-            onChange={(event) => updateField('username', event.target.value)}
-          />
-          {fieldErrors.username && <span className={styles.fieldError}>{fieldErrors.username}</span>}
-        </div>
+        <Field
+          label="SENHA"
+          id="password"
+          type="password"
+          value={values.password}
+          onChange={(event) => updateField('password', event.target.value)}
+          error={fieldErrors.password}
+        />
 
-        <div className={styles.field}>
-          <label htmlFor="password">Senha</label>
-          <input
-            id="password"
-            type="password"
-            value={values.password}
-            onChange={(event) => updateField('password', event.target.value)}
-          />
-          {fieldErrors.password && <span className={styles.fieldError}>{fieldErrors.password}</span>}
-        </div>
+        <Field
+          label="E-MAIL"
+          id="email"
+          type="email"
+          value={values.email}
+          onChange={(event) => updateField('email', event.target.value)}
+          error={fieldErrors.email}
+        />
 
-        <div className={styles.field}>
-          <label htmlFor="email">E-mail</label>
-          <input
-            id="email"
-            type="email"
-            value={values.email}
-            onChange={(event) => updateField('email', event.target.value)}
-          />
-          {fieldErrors.email && <span className={styles.fieldError}>{fieldErrors.email}</span>}
-        </div>
+        <Field
+          label="CEP"
+          id="cep"
+          value={values.cep}
+          onChange={(event) => updateField('cep', event.target.value)}
+          placeholder="Só de Alegrete/RS"
+          error={fieldErrors.cep}
+        />
 
-        <div className={styles.field}>
-          <label htmlFor="cep">CEP</label>
-          <input
-            id="cep"
-            value={values.cep}
-            onChange={(event) => updateField('cep', event.target.value)}
-            placeholder="Só de Alegrete/RS"
-          />
-          {fieldErrors.cep && <span className={styles.fieldError}>{fieldErrors.cep}</span>}
-        </div>
+        <Field
+          label="NÚMERO"
+          id="addressNumber"
+          value={values.addressNumber}
+          onChange={(event) => updateField('addressNumber', event.target.value)}
+          error={fieldErrors.addressNumber}
+        />
 
-        <div className={styles.field}>
-          <label htmlFor="addressNumber">Número</label>
-          <input
-            id="addressNumber"
-            value={values.addressNumber}
-            onChange={(event) => updateField('addressNumber', event.target.value)}
-          />
-          {fieldErrors.addressNumber && (
-            <span className={styles.fieldError}>{fieldErrors.addressNumber}</span>
+        <Field
+          label="COMPLEMENTO (OPCIONAL)"
+          id="addressComplement"
+          value={values.addressComplement}
+          onChange={(event) => updateField('addressComplement', event.target.value)}
+          error={fieldErrors.addressComplement}
+        />
+
+        <Field
+          label="NOME DE EXIBIÇÃO (OPCIONAL)"
+          id="displayName"
+          value={values.displayName}
+          onChange={(event) => updateField('displayName', event.target.value)}
+          error={fieldErrors.displayName}
+        />
+
+        <div>
+          <label className="flex items-center gap-2 text-xs text-silver-muted">
+            <input
+              id="acceptedTerms"
+              type="checkbox"
+              className="accent-ember size-4"
+              checked={values.acceptedTerms}
+              onChange={(event) => updateField('acceptedTerms', event.target.checked)}
+            />
+            Aceito os termos de uso e a política de privacidade
+          </label>
+          {fieldErrors.acceptedTerms && (
+            <span className="block mt-1 text-xs font-mono text-ember">
+              {fieldErrors.acceptedTerms}
+            </span>
           )}
         </div>
 
-        <div className={styles.field}>
-          <label htmlFor="addressComplement">Complemento (opcional)</label>
-          <input
-            id="addressComplement"
-            value={values.addressComplement}
-            onChange={(event) => updateField('addressComplement', event.target.value)}
-          />
-          {fieldErrors.addressComplement && (
-            <span className={styles.fieldError}>{fieldErrors.addressComplement}</span>
-          )}
-        </div>
-
-        <div className={styles.field}>
-          <label htmlFor="displayName">Nome de exibição (opcional)</label>
-          <input
-            id="displayName"
-            value={values.displayName}
-            onChange={(event) => updateField('displayName', event.target.value)}
-          />
-          {fieldErrors.displayName && (
-            <span className={styles.fieldError}>{fieldErrors.displayName}</span>
-          )}
-        </div>
-
-        <div className={styles.checkboxField}>
-          <input
-            id="acceptedTerms"
-            type="checkbox"
-            checked={values.acceptedTerms}
-            onChange={(event) => updateField('acceptedTerms', event.target.checked)}
-          />
-          <label htmlFor="acceptedTerms">Aceito os termos de uso e a política de privacidade</label>
-        </div>
-        {fieldErrors.acceptedTerms && (
-          <span className={styles.fieldError}>{fieldErrors.acceptedTerms}</span>
-        )}
-
-        <button type="submit" className={styles.submitButton} disabled={mutation.isPending}>
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="w-full bg-ember hover:bg-ember-glow disabled:opacity-60 disabled:cursor-not-allowed text-white font-display py-3 tracking-widest uppercase italic transition-colors"
+        >
           {mutation.isPending ? 'Enviando...' : 'Criar conta'}
         </button>
-      </form>
 
-      <p className={styles.footerLink}>
-        Já tem conta? <Link to="/login">Entrar</Link>
-      </p>
-    </div>
+        <p className="text-xs text-silver-muted text-center pt-4">
+          Já tem conta?{' '}
+          <Link to="/login" className="text-ember hover:underline font-bold uppercase">
+            Entrar
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 }

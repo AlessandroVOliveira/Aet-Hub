@@ -36,6 +36,16 @@ export const tournamentStatusLabels: Record<TournamentStatus, string> = {
   CANCELLED: 'Cancelado',
 };
 
+export const tournamentStatusTone: Record<TournamentStatus, 'accent' | 'live' | 'muted'> = {
+  DRAFT: 'muted',
+  REGISTRATION_OPEN: 'accent',
+  REGISTRATION_CLOSED: 'muted',
+  CHECKIN_OPEN: 'accent',
+  IN_PROGRESS: 'live',
+  COMPLETED: 'muted',
+  CANCELLED: 'muted',
+};
+
 export const registrationStatusLabels: Record<RegistrationStatus, string> = {
   PENDING: 'Pendente',
   CONFIRMED: 'Confirmada',

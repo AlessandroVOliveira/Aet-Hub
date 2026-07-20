@@ -5,6 +5,7 @@ import { validateTournamentCrossFields } from '@/utils/validate-tournament-form'
 import { applyIssuesToForm } from '@/utils/apply-issues-to-form';
 import { bracketTypeLabels, tiebreakerRuleLabels, tournamentStatusLabels } from '@/utils/format';
 import { ApiError } from '@/services/http';
+import { Banner } from '@/components/ui/Banner';
 import type {
   BracketType,
   CreateTournamentPayload,
@@ -15,7 +16,6 @@ import type {
   UpdateTournamentPayload,
 } from '@/types/tournament';
 import type { Game } from '@/types/game';
-import styles from './TournamentForm.module.css';
 
 interface TournamentFormValues extends Omit<
   TournamentFormFields,
@@ -43,6 +43,11 @@ const ALL_STATUSES: TournamentStatus[] = [
   'COMPLETED',
   'CANCELLED',
 ];
+
+const labelClass = 'font-mono text-[10px] text-silver-muted uppercase tracking-widest';
+const inputClass =
+  'mt-1 w-full bg-navy-light border-b-2 border-silver/20 focus:border-ember outline-none px-3 py-2 text-sm font-mono transition-colors';
+const errorClass = 'block mt-1 text-xs font-mono text-ember';
 
 function toDatetimeLocal(iso: string): string {
   const date = new Date(iso);
@@ -191,22 +196,30 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
   });
 
   return (
-    <form onSubmit={onSubmit} className={styles.form}>
-      <h2 className={styles.title}>{mode === 'create' ? 'Novo torneio' : 'Editar torneio'}</h2>
+    <form onSubmit={onSubmit} className="p-4 md:p-8 max-w-2xl space-y-4">
+      <h2 className="font-display text-3xl uppercase italic tracking-tight">
+        {mode === 'create' ? 'Novo torneio' : 'Editar torneio'}
+      </h2>
 
-      {generalError && <p className={styles.errorBanner}>{generalError}</p>}
+      {generalError && <Banner variant="error">{generalError}</Banner>}
 
-      <div className={styles.field}>
-        <label htmlFor="name">Nome</label>
-        <input id="name" {...register('name', { required: true, minLength: 3, maxLength: 120 })} />
-        {errors.name && (
-          <span className={styles.fieldError}>Informe um nome de 3 a 120 caracteres</span>
-        )}
+      <div>
+        <label htmlFor="name" className={labelClass}>
+          Nome
+        </label>
+        <input
+          id="name"
+          className={inputClass}
+          {...register('name', { required: true, minLength: 3, maxLength: 120 })}
+        />
+        {errors.name && <span className={errorClass}>Informe um nome de 3 a 120 caracteres</span>}
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="gameId">Jogo</label>
-        <select id="gameId" {...register('gameId', { required: true })}>
+      <div>
+        <label htmlFor="gameId" className={labelClass}>
+          Jogo
+        </label>
+        <select id="gameId" className={inputClass} {...register('gameId', { required: true })}>
           <option value="">Selecione...</option>
           {games.map((game) => (
             <option key={game.id} value={game.id}>
@@ -214,132 +227,174 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
             </option>
           ))}
         </select>
-        {errors.gameId && <span className={styles.fieldError}>Selecione um jogo</span>}
+        {errors.gameId && <span className={errorClass}>Selecione um jogo</span>}
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="description">Descrição (opcional)</label>
-        <textarea id="description" {...register('description', { maxLength: 2000 })} />
-        {errors.description && <span className={styles.fieldError}>Máximo de 2000 caracteres</span>}
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="registrationStartAt">Início das inscrições</label>
-        <input
-          id="registrationStartAt"
-          type="datetime-local"
-          {...register('registrationStartAt', { required: true })}
+      <div>
+        <label htmlFor="description" className={labelClass}>
+          Descrição (opcional)
+        </label>
+        <textarea
+          id="description"
+          rows={4}
+          className={inputClass}
+          {...register('description', { maxLength: 2000 })}
         />
-        {errors.registrationStartAt && <span className={styles.fieldError}>Campo obrigatório</span>}
+        {errors.description && <span className={errorClass}>Máximo de 2000 caracteres</span>}
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="registrationEndAt">Fim das inscrições</label>
-        <input
-          id="registrationEndAt"
-          type="datetime-local"
-          {...register('registrationEndAt', { required: true })}
-        />
-        {errors.registrationEndAt && (
-          <span className={styles.fieldError}>
-            {errors.registrationEndAt.message ?? 'Campo obrigatório'}
-          </span>
-        )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="registrationStartAt" className={labelClass}>
+            Início das inscrições
+          </label>
+          <input
+            id="registrationStartAt"
+            type="datetime-local"
+            className={inputClass}
+            {...register('registrationStartAt', { required: true })}
+          />
+          {errors.registrationStartAt && <span className={errorClass}>Campo obrigatório</span>}
+        </div>
+
+        <div>
+          <label htmlFor="registrationEndAt" className={labelClass}>
+            Fim das inscrições
+          </label>
+          <input
+            id="registrationEndAt"
+            type="datetime-local"
+            className={inputClass}
+            {...register('registrationEndAt', { required: true })}
+          />
+          {errors.registrationEndAt && (
+            <span className={errorClass}>
+              {errors.registrationEndAt.message ?? 'Campo obrigatório'}
+            </span>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="checkinDeadlineAt" className={labelClass}>
+            Prazo de check-in
+          </label>
+          <input
+            id="checkinDeadlineAt"
+            type="datetime-local"
+            className={inputClass}
+            {...register('checkinDeadlineAt', { required: true })}
+          />
+          {errors.checkinDeadlineAt && (
+            <span className={errorClass}>
+              {errors.checkinDeadlineAt.message ?? 'Campo obrigatório'}
+            </span>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="eventStartAt" className={labelClass}>
+            Início do evento
+          </label>
+          <input
+            id="eventStartAt"
+            type="datetime-local"
+            className={inputClass}
+            {...register('eventStartAt', { required: true })}
+          />
+          {errors.eventStartAt && (
+            <span className={errorClass}>{errors.eventStartAt.message ?? 'Campo obrigatório'}</span>
+          )}
+        </div>
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="checkinDeadlineAt">Prazo de check-in</label>
-        <input
-          id="checkinDeadlineAt"
-          type="datetime-local"
-          {...register('checkinDeadlineAt', { required: true })}
-        />
-        {errors.checkinDeadlineAt && (
-          <span className={styles.fieldError}>
-            {errors.checkinDeadlineAt.message ?? 'Campo obrigatório'}
-          </span>
-        )}
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="eventStartAt">Início do evento</label>
-        <input
-          id="eventStartAt"
-          type="datetime-local"
-          {...register('eventStartAt', { required: true })}
-        />
-        {errors.eventStartAt && (
-          <span className={styles.fieldError}>
-            {errors.eventStartAt.message ?? 'Campo obrigatório'}
-          </span>
-        )}
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="entryFeeCents">Taxa de inscrição (centavos)</label>
+      <div>
+        <label htmlFor="entryFeeCents" className={labelClass}>
+          Taxa de inscrição (centavos)
+        </label>
         <input
           id="entryFeeCents"
           type="number"
           min={0}
           step={1}
+          className={inputClass}
           {...register('entryFeeCents', { required: true, valueAsNumber: true, min: 0 })}
         />
         {errors.entryFeeCents && (
-          <span className={styles.fieldError}>Informe um valor válido (0 = gratuito)</span>
+          <span className={errorClass}>Informe um valor válido (0 = gratuito)</span>
         )}
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="bracketType">Formato de chave</label>
-        <select id="bracketType" {...register('bracketType', { required: true })}>
-          {BRACKET_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {bracketTypeLabels[type]}
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="bracketType" className={labelClass}>
+            Formato de chave
+          </label>
+          <select
+            id="bracketType"
+            className={inputClass}
+            {...register('bracketType', { required: true })}
+          >
+            {BRACKET_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {bracketTypeLabels[type]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="tiebreakerRule" className={labelClass}>
+            Critério de desempate (opcional)
+          </label>
+          <select id="tiebreakerRule" className={inputClass} {...register('tiebreakerRule')}>
+            <option value="">Nenhum</option>
+            {TIEBREAKER_RULES.map((rule) => (
+              <option key={rule} value={rule}>
+                {tiebreakerRuleLabels[rule]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="tiebreakerRule">Critério de desempate (opcional)</label>
-        <select id="tiebreakerRule" {...register('tiebreakerRule')}>
-          <option value="">Nenhum</option>
-          {TIEBREAKER_RULES.map((rule) => (
-            <option key={rule} value={rule}>
-              {tiebreakerRuleLabels[rule]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="pointsPerWin" className={labelClass}>
+            Pontos por vitória
+          </label>
+          <input
+            id="pointsPerWin"
+            type="number"
+            min={0}
+            step={1}
+            className={inputClass}
+            {...register('pointsPerWin', { required: true, valueAsNumber: true, min: 0 })}
+          />
+          {errors.pointsPerWin && <span className={errorClass}>Informe um valor válido</span>}
+        </div>
 
-      <div className={styles.field}>
-        <label htmlFor="pointsPerWin">Pontos por vitória</label>
-        <input
-          id="pointsPerWin"
-          type="number"
-          min={0}
-          step={1}
-          {...register('pointsPerWin', { required: true, valueAsNumber: true, min: 0 })}
-        />
-        {errors.pointsPerWin && <span className={styles.fieldError}>Informe um valor válido</span>}
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="pointsPerLoss">Pontos por derrota</label>
-        <input
-          id="pointsPerLoss"
-          type="number"
-          min={0}
-          step={1}
-          {...register('pointsPerLoss', { required: true, valueAsNumber: true, min: 0 })}
-        />
-        {errors.pointsPerLoss && <span className={styles.fieldError}>Informe um valor válido</span>}
+        <div>
+          <label htmlFor="pointsPerLoss" className={labelClass}>
+            Pontos por derrota
+          </label>
+          <input
+            id="pointsPerLoss"
+            type="number"
+            min={0}
+            step={1}
+            className={inputClass}
+            {...register('pointsPerLoss', { required: true, valueAsNumber: true, min: 0 })}
+          />
+          {errors.pointsPerLoss && <span className={errorClass}>Informe um valor válido</span>}
+        </div>
       </div>
 
       {mode === 'edit' && (
-        <div className={styles.field}>
-          <label htmlFor="status">Status</label>
-          <select id="status" {...register('status', { required: true })}>
+        <div>
+          <label htmlFor="status" className={labelClass}>
+            Status
+          </label>
+          <select id="status" className={inputClass} {...register('status', { required: true })}>
             {ALL_STATUSES.map((status) => (
               <option key={status} value={status}>
                 {tournamentStatusLabels[status]}
@@ -349,23 +404,31 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
         </div>
       )}
 
-      <section className={styles.arraySection}>
-        <h3 className={styles.arraySectionTitle}>Apoiadores</h3>
+      <section className="bg-navy-light ring-1 ring-silver/10 p-4 space-y-3">
+        <h3 className="font-mono text-[10px] uppercase tracking-widest text-silver-muted">
+          Apoiadores
+        </h3>
         {sponsorsArray.fields.map((field, index) => (
-          <div key={field.id} className={styles.arrayRow}>
+          <div key={field.id} className="flex flex-wrap gap-2 items-center">
             <input
               placeholder="Nome"
+              className={`${inputClass} flex-1 min-w-32`}
               {...register(`sponsors.${index}.name` as const, { required: true, maxLength: 100 })}
             />
             <input
               placeholder="URL do logo"
+              className={`${inputClass} flex-1 min-w-32`}
               {...register(`sponsors.${index}.logoUrl` as const, { required: true })}
             />
-            <input placeholder="Link (opcional)" {...register(`sponsors.${index}.link` as const)} />
+            <input
+              placeholder="Link (opcional)"
+              className={`${inputClass} flex-1 min-w-32`}
+              {...register(`sponsors.${index}.link` as const)}
+            />
             <button
               type="button"
-              className={styles.arrayRowRemove}
               onClick={() => sponsorsArray.remove(index)}
+              className="px-3 py-2 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase transition"
             >
               Remover
             </button>
@@ -373,24 +436,25 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
         ))}
         <button
           type="button"
-          className={styles.arrayAddButton}
           onClick={() => sponsorsArray.append({ name: '', logoUrl: '', link: '' })}
+          className="px-3 py-2 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase transition"
         >
           Adicionar apoiador
         </button>
       </section>
 
-      <section className={styles.arraySection}>
-        <h3 className={styles.arraySectionTitle}>Premiação por colocação</h3>
-        {placementRewardsRootError && (
-          <p className={styles.arraySectionError}>{placementRewardsRootError}</p>
-        )}
+      <section className="bg-navy-light ring-1 ring-silver/10 p-4 space-y-3">
+        <h3 className="font-mono text-[10px] uppercase tracking-widest text-silver-muted">
+          Premiação por colocação
+        </h3>
+        {placementRewardsRootError && <Banner variant="error">{placementRewardsRootError}</Banner>}
         {placementRewardsArray.fields.map((field, index) => (
-          <div key={field.id} className={styles.arrayRow}>
+          <div key={field.id} className="flex flex-wrap gap-2 items-center">
             <input
               type="number"
               min={1}
               placeholder="Colocação"
+              className={`${inputClass} w-28`}
               {...register(`placementRewards.${index}.placement` as const, {
                 required: true,
                 valueAsNumber: true,
@@ -402,6 +466,7 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
               min={0}
               max={100}
               placeholder="% do pot"
+              className={`${inputClass} w-28`}
               {...register(`placementRewards.${index}.potPercentage` as const, {
                 required: true,
                 valueAsNumber: true,
@@ -413,6 +478,7 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
               type="number"
               min={0}
               placeholder="Pontos bônus"
+              className={`${inputClass} w-32`}
               {...register(`placementRewards.${index}.bonusPoints` as const, {
                 required: true,
                 valueAsNumber: true,
@@ -421,8 +487,8 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
             />
             <button
               type="button"
-              className={styles.arrayRowRemove}
               onClick={() => placementRewardsArray.remove(index)}
+              className="px-3 py-2 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase transition"
             >
               Remover
             </button>
@@ -430,7 +496,6 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
         ))}
         <button
           type="button"
-          className={styles.arrayAddButton}
           onClick={() =>
             placementRewardsArray.append({
               placement: placementRewardsArray.fields.length + 1,
@@ -438,12 +503,17 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
               bonusPoints: 0,
             })
           }
+          className="px-3 py-2 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase transition"
         >
           Adicionar colocação premiada
         </button>
       </section>
 
-      <button type="submit" className={styles.submitButton} disabled={isPending || isSubmitting}>
+      <button
+        type="submit"
+        disabled={isPending || isSubmitting}
+        className="w-full bg-ember hover:bg-ember-glow disabled:opacity-60 disabled:cursor-not-allowed text-white font-display py-3 tracking-widest uppercase italic transition-colors"
+      >
         {isPending ? 'Salvando...' : 'Salvar'}
       </button>
     </form>

@@ -1,37 +1,56 @@
-:root {
-  --color-bg: #0a0a0d;
-  --color-bg-elevated: #131318;
-  --color-border: #26262e;
-  --color-text: #f2f2f5;
-  --color-text-muted: #9a9aa5;
+@import 'tailwindcss';
 
-  --color-accent-red: #ff2d55;
-  --color-accent-orange: #ff8a1f;
-  --gradient-accent: linear-gradient(90deg, var(--color-accent-red), var(--color-accent-orange));
-  --color-accent-glow: rgba(255, 82, 51, 0.45);
+/*
+ * AET Hub — sistema visual "arcade HUD" (baseado no guia gerado no Lovable
+ * a partir do PRD, docs/aethub.pdf). Base navy quase preto, acento ember
+ * (vermelho/laranja), detalhe silver. Fontes carregadas via <link> no
+ * index.html.
+ */
 
-  --color-danger: #ff4d4f;
-  --color-success: #35d07f;
+@theme {
+  --color-navy-dark: oklch(0.13 0.02 260);
+  --color-navy-light: oklch(0.19 0.03 260);
+  --color-ember: oklch(0.58 0.22 27);
+  --color-ember-glow: oklch(0.68 0.24 27);
+  --color-silver: oklch(0.92 0.005 260);
+  --color-silver-muted: oklch(0.68 0.01 260);
 
-  --font-heading: 'Rajdhani', 'Arial Narrow', sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Share Tech Mono', 'Consolas', monospace;
+  --font-display: 'Anton', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
 
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 16px;
-  --space-4: 24px;
-  --space-5: 40px;
+  --radius-panel: 0.125rem;
+}
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
+/* Cantos cortados (visual retro/hexagonal do deck) — usado nos painéis
+   principais em vez de border-radius. */
+@utility clip-panel {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
 
-  --clip-panel: polygon(
-    12px 0,
-    100% 0,
-    100% calc(100% - 12px),
-    calc(100% - 12px) 100%,
-    0 100%,
-    0 12px
-  );
+@keyframes aet-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 2px var(--color-ember));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px var(--color-ember-glow));
+  }
+}
+@keyframes aet-scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@utility animate-ember-glow {
+  animation: aet-glow-pulse 2s infinite ease-in-out;
+}
+@utility animate-scanline {
+  animation: aet-scanline 8s linear infinite;
 }

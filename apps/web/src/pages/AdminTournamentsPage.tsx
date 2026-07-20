@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { useAdminTournaments } from '@/hooks/useAdminTournaments';
 import { useDeleteTournament, useQuickStatusChange } from '@/hooks/useAdminTournamentMutations';
 import { QUICK_STATUS_ACTIONS } from '@/utils/tournament-status-actions';
-import { formatDate, tournamentStatusLabels } from '@/utils/format';
+import { formatDate, tournamentStatusLabels, tournamentStatusTone } from '@/utils/format';
 import { ApiError } from '@/services/http';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
+import { Banner } from '@/components/ui/Banner';
 import type { TournamentStatus } from '@/types/tournament';
-import styles from './AdminTournamentsPage.module.css';
 
 export function AdminTournamentsPage() {
   const { data, isLoading, isError, error } = useAdminTournaments();
@@ -47,96 +49,124 @@ export function AdminTournamentsPage() {
   }
 
   return (
-    <section>
-      <div className={styles.header}>
-        <h2 className={styles.title}>Torneios (admin)</h2>
-        <Link to="/admin/torneios/novo" className={styles.newButton}>
-          Novo torneio
-        </Link>
-      </div>
+    <div>
+      <PageHeader
+        eyebrow="STAFF_ONLY"
+        title="TORNEIOS"
+        accent="ADMIN"
+        actions={
+          <Link
+            to="/admin/torneios/novo"
+            className="px-4 py-2 bg-ember hover:bg-ember-glow text-white font-display italic uppercase text-xs tracking-widest"
+          >
+            + Novo torneio
+          </Link>
+        }
+      />
 
-      {actionError && <p className={styles.errorBanner}>{actionError}</p>}
+      <div className="p-4 md:p-8 space-y-4">
+        {actionError && <Banner variant="error">{actionError}</Banner>}
 
-      {isError && (
-        <p className={styles.errorBanner}>
-          {error instanceof ApiError ? error.message : 'Erro inesperado'}
-        </p>
-      )}
+        {isError && (
+          <Banner variant="error">
+            {error instanceof ApiError ? error.message : 'Erro inesperado'}
+          </Banner>
+        )}
 
-      {isLoading && <p>Carregando...</p>}
+        {isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
 
-      {!isLoading && !isError && data?.tournaments.length === 0 && (
-        <p className={styles.emptyState}>Nenhum torneio cadastrado ainda.</p>
-      )}
+        {!isLoading && !isError && data?.tournaments.length === 0 && (
+          <p className="text-sm text-silver-muted">Nenhum torneio cadastrado ainda.</p>
+        )}
 
-      {data && data.tournaments.length > 0 && (
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Jogo</th>
-                <th>Status</th>
-                <th>Evento</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.tournaments.map((tournament) => (
-                <tr key={tournament.id}>
-                  <td>{tournament.name}</td>
-                  <td>{tournament.game.name}</td>
-                  <td>
-                    <span className={styles.statusBadge} data-status={tournament.status}>
-                      {tournamentStatusLabels[tournament.status]}
-                    </span>
-                  </td>
-                  <td>{formatDate(tournament.eventStartAt)}</td>
-                  <td className={styles.actions}>
-                    <Link to={`/admin/torneios/${tournament.id}/editar`}>Editar</Link>
-                    {tournament.status !== 'DRAFT' && tournament.status !== 'CANCELLED' && (
-                      <Link to={`/admin/torneios/${tournament.id}/checkin`}>Checkin</Link>
-                    )}
-                    {(tournament.status === 'IN_PROGRESS' || tournament.status === 'COMPLETED') && (
-                      <Link
-                        to={`/torneios/${tournament.id}/chaveamento`}
-                        state={{ tournamentName: tournament.name }}
-                      >
-                        Chaveamento
-                      </Link>
-                    )}
-                    {(QUICK_STATUS_ACTIONS[tournament.status] ?? []).map((action) => (
-                      <button
-                        key={action.next}
-                        type="button"
-                        className={
-                          action.destructive ? styles.destructiveButton : styles.actionButton
-                        }
-                        disabled={quickStatusChange.isPending}
-                        onClick={() =>
-                          handleQuickStatusChange(tournament.id, action.next, action.label)
-                        }
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                    {tournament.status === 'DRAFT' && (
-                      <button
-                        type="button"
-                        className={styles.destructiveButton}
-                        disabled={deleteTournament.isPending}
-                        onClick={() => handleDelete(tournament.id)}
-                      >
-                        Excluir
-                      </button>
-                    )}
-                  </td>
+        {data && data.tournaments.length > 0 && (
+          <div className="bg-navy-light ring-1 ring-silver/10 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left font-mono text-[10px] uppercase text-silver-muted">
+                <tr className="border-b border-silver/10">
+                  <th className="px-4 py-2">Nome</th>
+                  <th className="px-4 py-2">Jogo</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Evento</th>
+                  <th className="px-4 py-2 text-right">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+              </thead>
+              <tbody>
+                {data.tournaments.map((tournament) => (
+                  <tr key={tournament.id} className="border-b border-silver/5">
+                    <td className="px-4 py-3 font-display italic uppercase">{tournament.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{tournament.game.name}</td>
+                    <td className="px-4 py-3">
+                      <StatusChip
+                        label={tournamentStatusLabels[tournament.status]}
+                        tone={tournamentStatusTone[tournament.status]}
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-silver-muted">
+                      {formatDate(tournament.eventStartAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        <Link
+                          to={`/admin/torneios/${tournament.id}/editar`}
+                          className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase"
+                        >
+                          Editar
+                        </Link>
+                        {tournament.status !== 'DRAFT' && tournament.status !== 'CANCELLED' && (
+                          <Link
+                            to={`/admin/torneios/${tournament.id}/checkin`}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase"
+                          >
+                            Checkin
+                          </Link>
+                        )}
+                        {(tournament.status === 'IN_PROGRESS' ||
+                          tournament.status === 'COMPLETED') && (
+                          <Link
+                            to={`/torneios/${tournament.id}/chaveamento`}
+                            state={{ tournamentName: tournament.name }}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase"
+                          >
+                            Chaveamento
+                          </Link>
+                        )}
+                        {(QUICK_STATUS_ACTIONS[tournament.status] ?? []).map((action) => (
+                          <button
+                            key={action.next}
+                            type="button"
+                            disabled={quickStatusChange.isPending}
+                            onClick={() =>
+                              handleQuickStatusChange(tournament.id, action.next, action.label)
+                            }
+                            className={`px-2 py-1 font-mono text-[10px] uppercase disabled:opacity-60 ${
+                              action.destructive
+                                ? 'bg-ember/20 ring-1 ring-ember/40 text-ember'
+                                : 'bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40'
+                            }`}
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                        {tournament.status === 'DRAFT' && (
+                          <button
+                            type="button"
+                            disabled={deleteTournament.isPending}
+                            onClick={() => handleDelete(tournament.id)}
+                            className="px-2 py-1 bg-ember/20 ring-1 ring-ember/40 text-ember font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            Excluir
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
