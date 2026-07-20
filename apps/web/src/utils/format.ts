@@ -1,5 +1,6 @@
 import type { CheckinMethod } from '@/types/checkin';
 import type { RegistrationStatus } from '@/types/registration';
+import type { RedemptionStatus } from '@/types/store';
 import type { BracketType, TiebreakerRule, TournamentStatus } from '@/types/tournament';
 
 export function formatCurrencyFromCents(cents: number): string {
@@ -56,4 +57,16 @@ export const registrationStatusLabels: Record<RegistrationStatus, string> = {
 export const checkinMethodLabels: Record<CheckinMethod, string> = {
   MANUAL_CODE: 'Código manual',
   QR_CODE: 'QR Code',
+};
+
+export const redemptionStatusLabels: Record<RedemptionStatus, string> = {
+  PENDING: 'Pendente',
+  FULFILLED: 'Cumprido',
+  CANCELLED: 'Cancelado',
+};
+
+export const redemptionStatusTone: Record<RedemptionStatus, 'accent' | 'live' | 'muted'> = {
+  PENDING: 'live',
+  FULFILLED: 'accent',
+  CANCELLED: 'muted',
 };
