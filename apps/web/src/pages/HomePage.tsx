@@ -6,7 +6,6 @@ import { useMyRegistrations } from '@/hooks/useMyRegistrations';
 import { useMyWallet } from '@/hooks/useMyWallet';
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Panel } from '@/components/ui/Panel';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { Banner } from '@/components/ui/Banner';
 import {
@@ -43,24 +42,26 @@ export function HomePage() {
     <div>
       <PageHeader eyebrow="INÍCIO" title="BEM-VINDO" accent={user?.displayName || user?.username} />
 
-      <div className="p-4 md:p-8 space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Panel title="Próximo torneio">
+      <div className="p-4 md:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-6">
+            <section className="relative overflow-hidden bg-navy-light ring-1 ring-silver/10">
               {openTournamentsQuery.isLoading && (
-                <p className="text-sm text-silver-muted">Carregando...</p>
+                <p className="p-6 text-sm text-silver-muted">Carregando...</p>
               )}
 
               {openTournamentsQuery.isError && (
-                <Banner variant="error">
-                  {openTournamentsQuery.error instanceof ApiError
-                    ? openTournamentsQuery.error.message
-                    : 'Erro inesperado'}
-                </Banner>
+                <div className="p-6">
+                  <Banner variant="error">
+                    {openTournamentsQuery.error instanceof ApiError
+                      ? openTournamentsQuery.error.message
+                      : 'Erro inesperado'}
+                  </Banner>
+                </div>
               )}
 
               {!openTournamentsQuery.isLoading && !openTournamentsQuery.isError && !featured && (
-                <p className="text-sm text-silver-muted">
+                <p className="p-6 text-sm text-silver-muted">
                   Nenhum torneio com inscrições abertas no momento.{' '}
                   <Link to="/torneios" className="text-ember hover:underline">
                     Ver todos os torneios
@@ -69,59 +70,73 @@ export function HomePage() {
               )}
 
               {featured && (
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <StatusChip
-                      label={tournamentStatusLabels[featured.status]}
-                      tone={tournamentStatusTone[featured.status]}
-                    />
-                    <span className="font-mono text-[10px] text-silver-muted uppercase">
-                      {featured.game.name}
-                    </span>
+                <div className="flex flex-col md:flex-row">
+                  <div className="md:w-1/2 aspect-video md:aspect-auto relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-ember/40 via-navy-dark to-navy-light" />
+                    <div className="absolute inset-0 grid place-items-center">
+                      <span className="font-display text-6xl italic tracking-tighter text-silver/20">
+                        {featured.game.slug.slice(0, 4).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="absolute top-3 left-3">
+                      <StatusChip
+                        label={tournamentStatusLabels[featured.status]}
+                        tone={tournamentStatusTone[featured.status]}
+                      />
+                    </div>
                   </div>
-                  <h3 className="font-display italic uppercase tracking-tight text-xl mb-3">
-                    {featured.name}
-                  </h3>
-                  <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-[10px] text-silver-muted mb-4">
+
+                  <div className="md:w-1/2 p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-silver/10">
                     <div>
-                      <dt className="uppercase">Inscrições até</dt>
-                      <dd className="text-silver mt-1">{formatDate(featured.registrationEndAt)}</dd>
+                      <p className="font-mono text-ember text-xs mb-2 uppercase">[ Próximo torneio ]</p>
+                      <h2 className="font-display text-4xl md:text-5xl tracking-tighter uppercase italic leading-[0.9] mb-4">
+                        {featured.name}
+                      </h2>
+                      <div className="space-y-1 font-mono text-sm text-silver-muted">
+                        <p>
+                          <span className="text-silver">JOGO:</span> {featured.game.name}
+                        </p>
+                        <p>
+                          <span className="text-silver">EVENTO:</span> {formatDate(featured.eventStartAt)}
+                        </p>
+                        <p>
+                          <span className="text-silver">TAXA:</span>{' '}
+                          {featured.entryFeeCents === 0
+                            ? 'Gratuito'
+                            : formatCurrencyFromCents(featured.entryFeeCents)}
+                        </p>
+                        <p>
+                          <span className="text-silver">INSCRIÇÕES ATÉ:</span>{' '}
+                          {formatDate(featured.registrationEndAt)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <dt className="uppercase">Evento</dt>
-                      <dd className="text-silver mt-1">{formatDate(featured.eventStartAt)}</dd>
-                    </div>
-                    <div>
-                      <dt className="uppercase">Taxa</dt>
-                      <dd className="text-silver mt-1">
-                        {featured.entryFeeCents === 0
-                          ? 'Gratuito'
-                          : formatCurrencyFromCents(featured.entryFeeCents)}
-                      </dd>
-                    </div>
-                  </dl>
-                  {alreadyRegisteredInFeatured ? (
-                    <Link
-                      to="/minhas-inscricoes"
-                      className="inline-block bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase tracking-widest px-4 py-2 transition"
-                    >
-                      Você já está inscrito — ver em Minhas inscrições
-                    </Link>
-                  ) : (
-                    <Link
-                      to={`/torneios/${featured.id}`}
-                      className="inline-block bg-ember hover:bg-ember-glow text-white font-mono text-[10px] uppercase tracking-widest px-4 py-2 transition-colors"
-                    >
-                      Ver detalhes e inscrever-se
-                    </Link>
-                  )}
+
+                    {alreadyRegisteredInFeatured ? (
+                      <Link
+                        to="/minhas-inscricoes"
+                        className="mt-8 w-full bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 text-center font-display py-4 tracking-widest uppercase italic transition"
+                      >
+                        Você já está inscrito — ver em Minhas inscrições
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/torneios/${featured.id}`}
+                        className="mt-8 w-full bg-ember hover:bg-ember-glow text-white text-center font-display py-4 tracking-widest uppercase italic transition-colors"
+                      >
+                        Ver detalhes e inscrever-se
+                      </Link>
+                    )}
+                  </div>
                 </div>
               )}
-            </Panel>
-          </div>
+            </section>
 
-          <div className="space-y-6">
-            <Panel title="Check-in pendente">
+            <section className="bg-navy-light/50 border-l-4 border-ember p-6">
+              <h3 className="font-display text-2xl tracking-tight uppercase italic mb-4">
+                Check-in pendente
+              </h3>
+
               {myRegistrationsQuery.isLoading && (
                 <p className="text-sm text-silver-muted">Carregando...</p>
               )}
@@ -145,7 +160,7 @@ export function HomePage() {
                   <p className="text-sm mb-2">
                     Você tem <strong>{pendingCheckins.length}</strong> pendência(s) de check-in.
                   </p>
-                  <ul className="font-mono text-[10px] text-silver-muted mb-3 space-y-1">
+                  <ul className="font-mono text-[10px] text-silver-muted mb-4 space-y-1">
                     {pendingCheckins.slice(0, 3).map((registration) => (
                       <li key={registration.id}>{registration.tournament.name}</li>
                     ))}
@@ -158,9 +173,13 @@ export function HomePage() {
                   </Link>
                 </div>
               )}
-            </Panel>
+            </section>
+          </div>
 
-            <Panel title="Meu saldo">
+          <aside className="lg:col-span-4 space-y-6">
+            <div className="bg-navy-light p-6 ring-1 ring-silver/10">
+              <p className="text-[10px] font-mono text-silver-muted mb-2">MEU SALDO</p>
+
               {walletQuery.isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
 
               {walletQuery.isError && (
@@ -171,7 +190,7 @@ export function HomePage() {
 
               {!walletQuery.isLoading && !walletQuery.isError && (
                 <div>
-                  <p className="font-display text-3xl italic mb-3">
+                  <p className="font-display text-4xl italic leading-none mb-4">
                     {walletQuery.data?.balance ?? 0}{' '}
                     <span className="text-ember text-sm font-mono not-italic">PTS</span>
                   </p>
@@ -180,21 +199,21 @@ export function HomePage() {
                   </Link>
                 </div>
               )}
-            </Panel>
-          </div>
-        </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:hidden">
-          {SHORTCUTS.map((shortcut) => (
-            <Link
-              key={shortcut.to}
-              to={shortcut.to}
-              className="bg-navy-light ring-1 ring-silver/10 hover:ring-ember/40 p-4 flex items-center gap-2 font-mono text-xs uppercase tracking-widest transition"
-            >
-              <shortcut.icon className="size-4 text-ember" />
-              {shortcut.label}
-            </Link>
-          ))}
+            <div className="grid grid-cols-2 gap-2 font-display uppercase italic text-sm">
+              {SHORTCUTS.map((shortcut) => (
+                <Link
+                  key={shortcut.to}
+                  to={shortcut.to}
+                  className="p-4 bg-navy-light ring-1 ring-silver/5 hover:ring-ember/50 hover:bg-navy-dark transition-all text-center flex flex-col items-center gap-2"
+                >
+                  <shortcut.icon className="size-4 text-ember" />
+                  {shortcut.label}
+                </Link>
+              ))}
+            </div>
+          </aside>
         </div>
       </div>
     </div>
