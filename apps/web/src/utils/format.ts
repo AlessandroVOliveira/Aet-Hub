@@ -1,4 +1,5 @@
 import type { CheckinMethod } from '@/types/checkin';
+import type { MatchResult } from '@/types/profile';
 import type { RegistrationStatus } from '@/types/registration';
 import type { RedemptionStatus } from '@/types/store';
 import type { BracketType, TiebreakerRule, TournamentStatus } from '@/types/tournament';
@@ -54,9 +55,26 @@ export const registrationStatusLabels: Record<RegistrationStatus, string> = {
   WAITLISTED: 'Lista de espera',
 };
 
+export const registrationStatusTone: Record<RegistrationStatus, 'accent' | 'live' | 'muted'> = {
+  PENDING: 'live',
+  CONFIRMED: 'accent',
+  CANCELLED: 'muted',
+  WAITLISTED: 'live',
+};
+
 export const checkinMethodLabels: Record<CheckinMethod, string> = {
   MANUAL_CODE: 'Código manual',
   QR_CODE: 'QR Code',
+};
+
+export const matchResultLabels: Record<MatchResult, string> = {
+  WIN: 'Vitória',
+  LOSS: 'Derrota',
+};
+
+export const matchResultTone: Record<MatchResult, 'accent' | 'live' | 'muted'> = {
+  WIN: 'accent',
+  LOSS: 'muted',
 };
 
 export const redemptionStatusLabels: Record<RedemptionStatus, string> = {

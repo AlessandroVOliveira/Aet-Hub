@@ -9,6 +9,8 @@ import { TournamentsPage } from '@/pages/TournamentsPage';
 import { TournamentDetailPage } from '@/pages/TournamentDetailPage';
 import { BracketPage } from '@/pages/BracketPage';
 import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
+import { ProfilePage } from '@/pages/ProfilePage';
+import { ProfileEditPage } from '@/pages/ProfileEditPage';
 import { StorePage } from '@/pages/StorePage';
 import { StoreItemDetailPage } from '@/pages/StoreItemDetailPage';
 import { MyRedemptionsPage } from '@/pages/MyRedemptionsPage';
@@ -33,6 +35,8 @@ export const router = createBrowserRouter([
           { path: '/torneios/:id', element: <TournamentDetailPage /> },
           { path: '/torneios/:id/chaveamento', element: <BracketPage /> },
           { path: '/minhas-inscricoes', element: <MyRegistrationsPage /> },
+          { path: '/perfil', element: <ProfilePage /> },
+          { path: '/perfil/editar', element: <ProfileEditPage /> },
           { path: '/loja', element: <StorePage /> },
           { path: '/loja/:id', element: <StoreItemDetailPage /> },
           { path: '/minhas-trocas', element: <MyRedemptionsPage /> },

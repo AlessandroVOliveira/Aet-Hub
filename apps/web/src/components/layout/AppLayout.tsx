@@ -10,6 +10,7 @@ import {
   Shield,
   Menu,
   X,
+  UserCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyWallet } from '@/hooks/useMyWallet';
@@ -24,6 +25,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: Home },
+  { to: '/perfil', label: 'Perfil', icon: UserCircle },
   { to: '/torneios', label: 'Torneios', icon: Trophy },
   { to: '/minhas-inscricoes', label: 'Minhas inscrições', icon: Trophy },
   { to: '/loja', label: 'Loja', icon: Store },
@@ -173,13 +175,15 @@ function UserBlock({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="border-t border-silver/10 p-4 flex items-center gap-3">
-      <div className="size-9 bg-ember/20 ring-1 ring-ember/40 grid place-items-center font-display italic text-sm shrink-0">
-        {user.displayName[0]?.toUpperCase() ?? user.username[0]?.toUpperCase()}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-display text-sm truncate italic">{user.displayName || user.username}</p>
-        <p className="font-mono text-[10px] text-silver-muted">{data?.balance ?? 0} PTS</p>
-      </div>
+      <Link to="/perfil" className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="size-9 bg-ember/20 ring-1 ring-ember/40 grid place-items-center font-display italic text-sm shrink-0">
+          {user.displayName[0]?.toUpperCase() ?? user.username[0]?.toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-sm truncate italic">{user.displayName || user.username}</p>
+          <p className="font-mono text-[10px] text-silver-muted">{data?.balance ?? 0} PTS</p>
+        </div>
+      </Link>
       <button
         type="button"
         onClick={onLogout}

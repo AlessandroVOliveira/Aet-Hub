@@ -6,6 +6,8 @@ import type { Role } from '@/types/auth';
 
 const TOKEN_STORAGE_KEY = 'aet-hub:token';
 
+export const ME_QUERY_KEY = (token: string | null) => ['me', token] as const;
+
 interface SessionUser {
   id: string;
   username: string;
@@ -32,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['me', token],
+    queryKey: ME_QUERY_KEY(token),
     queryFn: async () => {
       try {
         return await getMe(token!);
