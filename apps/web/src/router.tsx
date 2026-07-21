@@ -15,6 +15,9 @@ import { MyRedemptionsPage } from '@/pages/MyRedemptionsPage';
 import { AdminTournamentsPage } from '@/pages/AdminTournamentsPage';
 import { AdminTournamentFormPage } from '@/pages/AdminTournamentFormPage';
 import { AdminCheckinPage } from '@/pages/AdminCheckinPage';
+import { AdminStoreItemsPage } from '@/pages/AdminStoreItemsPage';
+import { AdminStoreItemFormPage } from '@/pages/AdminStoreItemFormPage';
+import { AdminRedemptionsPage } from '@/pages/AdminRedemptionsPage';
 
 export const router = createBrowserRouter([
   {
@@ -40,6 +43,10 @@ export const router = createBrowserRouter([
               { path: '/admin/torneios/novo', element: <AdminTournamentFormPage /> },
               { path: '/admin/torneios/:id/editar', element: <AdminTournamentFormPage /> },
               { path: '/admin/torneios/:id/checkin', element: <AdminCheckinPage /> },
+              { path: '/admin/loja', element: <AdminStoreItemsPage /> },
+              { path: '/admin/loja/novo', element: <AdminStoreItemFormPage /> },
+              { path: '/admin/loja/:id/editar', element: <AdminStoreItemFormPage /> },
+              { path: '/admin/loja/resgates', element: <AdminRedemptionsPage /> },
             ],
           },
         ],

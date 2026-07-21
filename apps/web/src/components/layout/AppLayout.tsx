@@ -31,7 +31,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/ranking', label: 'Ranking', icon: BarChart3, comingSoon: true },
   { to: '/comunidade', label: 'Comunidade', icon: Users, comingSoon: true },
   { to: '/chat', label: 'Chat', icon: MessageSquare, comingSoon: true },
-  { to: '/admin/torneios', label: 'Admin', icon: Shield, adminOnly: true },
+  { to: '/admin/torneios', label: 'Admin Torneios', icon: Shield, adminOnly: true },
+  { to: '/admin/loja', label: 'Admin Loja', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout() {

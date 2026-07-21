@@ -70,3 +70,10 @@ export const redemptionStatusTone: Record<RedemptionStatus, 'accent' | 'live' | 
   FULFILLED: 'accent',
   CANCELLED: 'muted',
 };
+
+export function storeItemActiveChip(isActive: boolean): {
+  label: string;
+  tone: 'accent' | 'muted';
+} {
+  return isActive ? { label: 'Ativo', tone: 'accent' } : { label: 'Inativo', tone: 'muted' };
+}

@@ -48,3 +48,46 @@ export interface CreateRedemptionPayload {
 export interface CreateRedemptionResponse {
   redemption: Redemption;
 }
+
+export interface RedemptionUserSummary {
+  id: string;
+  username: string;
+  profile: { displayName: string } | null;
+}
+
+export interface RedemptionWithUser extends Redemption {
+  user: RedemptionUserSummary;
+}
+
+export interface GetAllStoreItemsResponse {
+  items: StoreItem[];
+}
+
+export interface GetAllRedemptionsResponse {
+  redemptions: RedemptionWithUser[];
+}
+
+export interface StoreItemFormFields {
+  name: string;
+  description: string;
+  costInCoins: number;
+  stock?: number | null;
+  imageUrl?: string;
+  partnerName?: string;
+  isActive?: boolean;
+}
+
+export type CreateStoreItemPayload = StoreItemFormFields;
+export type UpdateStoreItemPayload = Partial<StoreItemFormFields>;
+
+export interface UpdateRedemptionStatusPayload {
+  status: 'FULFILLED' | 'CANCELLED';
+}
+
+export interface GetStoreItemResponse {
+  item: StoreItem;
+}
+
+export interface GetRedemptionResponse {
+  redemption: Redemption;
+}
