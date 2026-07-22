@@ -20,7 +20,7 @@ apps/api/prisma/migrations/**/migration.sql.bak
 
 # Fotos de torneio enviadas em dev local (RF-15)
 apps/api/uploads/
-
+/prints
 # Logs
 *.log
 npm-debug.log*

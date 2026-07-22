@@ -264,6 +264,42 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   commit/rollback. Diferente de decremento de estoque (`stock: {
   decrement: 1 }` com `WHERE stock > 0`), que já é atômico via `UPDATE`
   condicional — não precisa de lock adicional.
+- **Leitura agregada global bloqueada por RLS (ranking, RF-30)**: quando um
+  endpoint precisa agregar dados de TODOS os usuários mas a RLS restringe
+  cada sessão às próprias linhas (ex. `SUM(amount)` de `points_transactions`
+  por usuário), o padrão é função SQL `SECURITY DEFINER`
+  (`app_points_leaderboard()`, migration `points_leaderboard_function`) —
+  mesma técnica de `app_current_user_tournament_ids()`, mas retornando
+  `TABLE` com SÓ colunas públicas (username/display_name/soma de pontos):
+  a função é a fronteira de exposição, nunca devolver email/hash/linhas
+  individuais. Sempre `REVOKE ALL ... FROM PUBLIC` + `GRANT EXECUTE TO
+  aet_hub_app`. Chamada via `tx.$queryRaw` dentro de `withRls` (contexto
+  irrelevante pra função definer, mas mantém a convenção). Dois gotchas:
+  `SUM`/`RANK` chegam como `BigInt` no `$queryRaw` — converter com
+  `Number(...)` no repository, senão `JSON.stringify` estoura `TypeError`
+  na resposta; e `position` NÃO é válido sem aspas em `RETURNS TABLE`
+  (reservada pela sintaxe `POSITION(x IN y)`) — usar `"position"`.
+- **Chat geral (RF-37) — socket continua broadcast-only**: escrita SEMPRE
+  via REST (`POST /chat/messages` com `validateBody`/rate limit/`withRls`),
+  nunca por evento socket cliente→servidor — mantém validação, limite e
+  tratamento de erro nos middlewares Express que o resto do projeto já
+  usa. O broadcast `chat:message` (namespace `/chat`, handshake autenticado
+  pelo `socketAuthMiddleware` compartilhado de `config/socket.ts`) CARREGA
+  a mensagem no payload — diferente do fire-and-refetch do bracket
+  (payload mínimo + invalidate), porque refetch da história a cada
+  mensagem não escala — e é emitido DEPOIS do `withRls` retornar (emitir
+  dentro entregaria payload de transação que ainda pode sofrer rollback).
+  Autor denormalizado (`ChatMessage.senderDisplayName`, snapshot no
+  INSERT): não alargar a RLS de `users`/`profiles` pra permitir join (RLS
+  é row-level — exporia email/password_hash no nível de linha) nem
+  atravessar `ChatMessage.user` com `include` (relação obrigatória + RLS,
+  ver bullet acima); rename de displayName não retroage, semântica de
+  snapshot aceita. Rate limit de escrita por USUÁRIO
+  (`keyGenerator: (req) => req.user!.id`), não por IP — os eventos da AET
+  são presenciais, dezenas de players no mesmo wifi. Policy de SELECT usa
+  `current_setting('app.current_user_id', true) <> ''` (só sessão
+  autenticada — mais estreito que o `USING (true)` das tabelas de
+  catálogo, porque mensagem é conteúdo de usuário).
 
 ## Padrões do frontend (apps/web)
 
@@ -289,11 +325,28 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   (`src/components/auth/AuthLayout.tsx`, split-screen com o hero da
   marca). Toda rota nova que for um "destino de produto" (não um passo de
   fluxo, tipo checkin) entra em `NAV_ITEMS` dentro de `AppLayout.tsx`;
-  itens cujo **backend** ainda não existe (hoje Ranking, Comunidade, Chat)
-  usam a flag `comingSoon` — aparecem no menu desabilitados com selo "em
-  breve" em vez de sumirem. Uma tela com backend pronto mas ainda sem
-  frontend (ex. Loja, Perfil) fica de fora do nav até existir de fato —
-  link morto é pior que omitir.
+  itens cujo **backend** ainda não existe (hoje só Comunidade) usam a
+  flag `comingSoon` — aparecem no menu desabilitados com selo "em breve"
+  em vez de sumirem. Uma tela com backend pronto mas ainda sem frontend
+  fica de fora do nav até existir de fato — link morto é pior que omitir.
+- **Lista em tempo real com payload no evento (chat)**: diferente do
+  padrão fire-and-refetch do bracket (evento sem payload → invalidate →
+  refetch), mensagens de chat chegam no payload do evento e são
+  APPENDADAS ao cache via `setQueryData` com dedupe por `id`
+  (`useChatMessages.ts#appendChatMessage`). Mutation (`onSuccess`) e
+  broadcast appendam OS DOIS de propósito — cobre socket momentaneamente
+  caído, e o dedupe torna a chegada dupla inofensiva; não "limpar" um dos
+  caminhos. Cache `undefined` fica intacto (não criar cache parcial antes
+  do GET inicial) e `invalidateQueries` no evento `connect` do socket
+  ressincroniza a história após desconexão. `ChatPage` é a primeira tela
+  full-height com scroll interno do app: `h-[calc(100vh-3.5rem)]
+  lg:h-screen` (3.5rem = `h-14` do header mobile do `AppLayout`) +
+  `overflow-y-auto` na lista; auto-scroll só acontece se o usuário já
+  estava no fundo, com a posição rastreada via `useRef` atualizado no
+  `onScroll` (não `useState` — zero re-render por scroll e evita
+  `react-hooks/set-state-in-effect`). Hora de mensagem via `formatTime`
+  (`utils/format.ts`, `Intl` HH:mm) — nunca fatiar a string ISO na mão
+  (timezone).
 - **Dois padrões de campo de formulário, não misturar**: formulários
   simples com `useState` controlado (Login, Cadastro) usam o componente
   `Field` (`src/components/ui/Field.tsx`: label + input + erro,
@@ -436,8 +489,9 @@ literal do deck), tipografia Anton/JetBrains Mono/Inter, sem os ícones
 pixel art 8-bit. Não é um workspace do monorepo nem é importado por
 `apps/web` — é só a fonte de onde os tokens/telas foram portados
 manualmente, tela por tela (ver "Padrões do frontend" acima). Ele também
-desenha telas/ações sem contrapartida no backend hoje (chat, ranking,
-comunidade, XP/nível/conquistas, login social); o tratamento disso no
+desenha telas/ações sem contrapartida no backend hoje (comunidade,
+XP/nível/conquistas, login social, DMs/canais e presença "online" do
+chat); o tratamento disso no
 frontend real está descrito em "Estrutura de layout de página" acima —
 nunca copiar uma tela do Lovable 1:1 sem antes checar se a rota/campo
 correspondente existe na API.
