@@ -12,6 +12,7 @@ import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { ProfileEditPage } from '@/pages/ProfileEditPage';
 import { RankingPage } from '@/pages/RankingPage';
+import { ChatPage } from '@/pages/ChatPage';
 import { StorePage } from '@/pages/StorePage';
 import { StoreItemDetailPage } from '@/pages/StoreItemDetailPage';
 import { MyRedemptionsPage } from '@/pages/MyRedemptionsPage';
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
           { path: '/loja/:id', element: <StoreItemDetailPage /> },
           { path: '/minhas-trocas', element: <MyRedemptionsPage /> },
           { path: '/ranking', element: <RankingPage /> },
+          { path: '/chat', element: <ChatPage /> },
           {
             element: <AdminRoute />,
             children: [

@@ -18,6 +18,15 @@ export function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+// Sempre via Intl sobre o Date, nunca fatiando a string ISO — um slice
+// ignoraria o timezone e mostraria a hora UTC em vez da hora local.
+export function formatTime(iso: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso));
+}
+
 export const bracketTypeLabels: Record<BracketType, string> = {
   SINGLE_ELIMINATION: 'Eliminação simples',
   DOUBLE_ELIMINATION: 'Eliminação dupla',

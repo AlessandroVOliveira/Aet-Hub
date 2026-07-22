@@ -106,6 +106,7 @@ model User {
   tournamentsCreated       Tournament[]
   auditLogs                AuditLog[]
   tournamentPhotosUploaded TournamentPhoto[]
+  chatMessages             ChatMessage[]
 
   @@map("users")
 }
@@ -398,4 +399,22 @@ model TournamentPhoto {
 
   @@index([tournamentId])
   @@map("tournament_photos")
+}
+
+// Chat geral (RF-37). senderDisplayName é snapshot do Profile no momento
+// do envio: a RLS de users/profiles não permite que um player veja todos
+// os autores, e atravessar relação obrigatória invisível quebra o Prisma
+// (ver CLAUDE.md) — denormalizar evita os dois problemas. Rename de
+// displayName não retroage em mensagens antigas (semântica de snapshot).
+model ChatMessage {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  senderDisplayName String   @map("sender_display_name")
+  content           String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@map("chat_messages")
 }
