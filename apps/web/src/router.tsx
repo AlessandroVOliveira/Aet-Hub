@@ -11,6 +11,7 @@ import { BracketPage } from '@/pages/BracketPage';
 import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { ProfileEditPage } from '@/pages/ProfileEditPage';
+import { RankingPage } from '@/pages/RankingPage';
 import { StorePage } from '@/pages/StorePage';
 import { StoreItemDetailPage } from '@/pages/StoreItemDetailPage';
 import { MyRedemptionsPage } from '@/pages/MyRedemptionsPage';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
           { path: '/loja', element: <StorePage /> },
           { path: '/loja/:id', element: <StoreItemDetailPage /> },
           { path: '/minhas-trocas', element: <MyRedemptionsPage /> },
+          { path: '/ranking', element: <RankingPage /> },
           {
             element: <AdminRoute />,
             children: [
