@@ -107,6 +107,8 @@ model User {
   auditLogs                AuditLog[]
   tournamentPhotosUploaded TournamentPhoto[]
   chatMessages             ChatMessage[]
+  directMessagesSent       DirectMessage[] @relation("DirectMessagesSent")
+  directMessagesReceived   DirectMessage[] @relation("DirectMessagesReceived")
 
   @@map("users")
 }
@@ -417,4 +419,30 @@ model ChatMessage {
 
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+// DM 1:1 (RF-38). Sem tabela Conversation própria — uma "conversa" é
+// derivada agregando as linhas por par de usuários (ver
+// direct-messages.repository.ts#listConversations). Os DOIS displayNames
+// são snapshot denormalizado no INSERT, não join: a RLS de users/profiles
+// só libera "colegas de torneio", então um destinatário sem torneio em
+// comum com o remetente ficaria invisível num include/select — e por ser
+// relação obrigatória (sender/recipient não são opcionais), isso quebraria
+// a query inteira em vez de só vir null (ver CLAUDE.md). NUNCA fazer
+// include/select de sender/recipient a partir daqui.
+model DirectMessage {
+  id                   String   @id @default(cuid())
+  senderId             String   @map("sender_id")
+  recipientId          String   @map("recipient_id")
+  senderDisplayName    String   @map("sender_display_name")
+  recipientDisplayName String   @map("recipient_display_name")
+  content              String
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  sender    User @relation("DirectMessagesSent", fields: [senderId], references: [id])
+  recipient User @relation("DirectMessagesReceived", fields: [recipientId], references: [id])
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, senderId, createdAt])
+  @@map("direct_messages")
 }

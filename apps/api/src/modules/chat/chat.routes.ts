@@ -5,6 +5,12 @@ import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
 import { sendChatMessageSchema } from './chat.schemas.js';
 import { listChatMessagesHandler, sendChatMessageHandler } from './chat.controller.js';
+import { sendDirectMessageSchema } from './direct-messages.schemas.js';
+import {
+  listConversationsHandler,
+  listDirectMessagesHandler,
+  sendDirectMessageHandler,
+} from './direct-messages.controller.js';
 
 export const chatRouter = Router();
 
@@ -29,4 +35,16 @@ chatRouter.post(
   sendMessageLimiter,
   validateBody(sendChatMessageSchema),
   asyncHandler(sendChatMessageHandler),
+);
+
+// DM 1:1 (RF-38). Reusa a MESMA instância de `sendMessageLimiter` do chat
+// geral de propósito — orçamento único de 20 msg/min por usuário somando
+// as duas superfícies, não 20 + 20.
+chatRouter.get('/conversations', asyncHandler(listConversationsHandler));
+chatRouter.get('/conversations/:userId/messages', asyncHandler(listDirectMessagesHandler));
+chatRouter.post(
+  '/conversations/:userId/messages',
+  sendMessageLimiter,
+  validateBody(sendDirectMessageSchema),
+  asyncHandler(sendDirectMessageHandler),
 );

@@ -1,6 +1,6 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
-import { verifyAccessToken } from '../modules/auth/jwt.js';
+import { verifyAccessToken, type AccessTokenPayload } from '../modules/auth/jwt.js';
 
 // Guarda a instância criada por createSocketServer para que módulos fora
 // do ciclo request/response do Express (services que precisam emitir
@@ -55,11 +55,20 @@ export function createSocketServer(httpServer: HttpServer): Server {
     });
   });
 
-  // Chat geral (RF-37): namespace broadcast-only — o cliente não emite
-  // eventos; o envio é via POST /chat/messages, e chat.service emite
-  // 'chat:message' para o namespace inteiro (canal único, sem salas).
+  // Chat geral (RF-37) + DM 1:1 (RF-38): namespace continua broadcast-only
+  // — o cliente não emite eventos, escrita é sempre via REST
+  // (POST /chat/messages, POST /chat/conversations/:userId/messages).
+  // chat.service emite 'chat:message' para o namespace inteiro (canal
+  // único, sem sala). A sala `user:{id}` existe só para a entrega
+  // direcionada de DM: direct-messages.service emite 'chat:dm' apenas
+  // para as duas salas dos participantes, nunca para o namespace inteiro.
   const chat = io.of('/chat');
   chat.use(socketAuthMiddleware);
+
+  chat.on('connection', (socket) => {
+    const user = socket.data.user as AccessTokenPayload;
+    socket.join(`user:${user.id}`);
+  });
 
   return io;
 }
