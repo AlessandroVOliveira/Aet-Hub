@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { MessageCircle } from 'lucide-react';
 import { useRanking } from '@/hooks/useRanking';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/http';
@@ -33,17 +35,18 @@ export function RankingPage() {
         {data && data.entries.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
             <div className="bg-navy-light ring-1 ring-silver/10">
-              <div className="grid grid-cols-[3rem_1fr_6rem] px-4 py-2 border-b border-silver/10 font-mono text-[10px] uppercase text-silver-muted">
+              <div className="grid grid-cols-[3rem_1fr_6rem_2.5rem] px-4 py-2 border-b border-silver/10 font-mono text-[10px] uppercase text-silver-muted">
                 <span>#</span>
                 <span>Player</span>
                 <span className="text-right">Pontos</span>
+                <span />
               </div>
               {data.entries.map((entry) => {
                 const isMe = entry.userId === user?.id;
                 return (
                   <div
                     key={entry.userId}
-                    className={`grid grid-cols-[3rem_1fr_6rem] items-center px-4 py-3 border-b border-silver/5 text-sm ${
+                    className={`grid grid-cols-[3rem_1fr_6rem_2.5rem] items-center px-4 py-3 border-b border-silver/5 text-sm ${
                       isMe ? 'bg-ember/10' : ''
                     }`}
                   >
@@ -55,6 +58,18 @@ export function RankingPage() {
                     <span className="text-right font-mono text-ember">
                       {entry.points.toLocaleString('pt-BR')}
                     </span>
+                    {isMe ? (
+                      <span />
+                    ) : (
+                      <Link
+                        to={`/mensagens/${entry.userId}`}
+                        state={{ displayName: entry.displayName ?? entry.username }}
+                        aria-label={`Conversar com ${entry.displayName ?? entry.username}`}
+                        className="justify-self-end text-silver-muted hover:text-ember"
+                      >
+                        <MessageCircle className="size-4" />
+                      </Link>
+                    )}
                   </div>
                 );
               })}
