@@ -141,6 +141,22 @@ export async function findBracketByTournamentId(
   return { slots, matches };
 }
 
+// Usado só pra montar as notificações MATCH_READY (matches.service.ts):
+// dono (userId) + nome de exibição de cada Registration recém-emparelhada.
+// Sessão que chama isto é sempre ADMIN (startTournament/recordMatchResult),
+// então a visibilidade ampla de users/profiles concedida pelas policies
+// self_or_admin já cobre — sem gambiarra de RLS aqui.
+export function findRegistrationOwners(tx: Prisma.TransactionClient, registrationIds: string[]) {
+  return tx.registration.findMany({
+    where: { id: { in: registrationIds } },
+    select: {
+      id: true,
+      userId: true,
+      user: { select: { username: true, profile: { select: { displayName: true } } } },
+    },
+  });
+}
+
 export function findMatchesByUserId(tx: Prisma.TransactionClient, userId: string) {
   return tx.match.findMany({
     where: {

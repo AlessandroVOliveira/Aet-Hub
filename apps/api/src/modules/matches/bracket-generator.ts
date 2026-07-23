@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Match, Prisma } from '@prisma/client';
 import * as matchesRepository from './matches.repository.js';
 
 function nextPowerOfTwo(n: number): number {
@@ -66,19 +66,21 @@ export function computeBracketPlan(registrationIds: string[]): BracketPlan {
 // irmão do mesmo par; se os dois lados estiverem prontos e existir rodada
 // seguinte, cria o Match daquele par — sem duplicar se já existir.
 // Reaproveitada tanto na geração (cascata de byes) quanto no registro de
-// resultado de partida.
+// resultado de partida. Retorna o Match criado (ou null nos early-returns/
+// quando já existia) para o caller poder gerar notificações MATCH_READY
+// sem precisar reconsultar o banco.
 export async function maybeCreateNextRoundMatch(
   tx: Prisma.TransactionClient,
   tournamentId: string,
   round: number,
   position: number,
-): Promise<void> {
+): Promise<Match | null> {
   const siblingPosition = position % 2 === 1 ? position + 1 : position - 1;
   const [currentSlot, siblingSlot] = await Promise.all([
     matchesRepository.findBracketSlotByPosition(tx, tournamentId, round, position),
     matchesRepository.findBracketSlotByPosition(tx, tournamentId, round, siblingPosition),
   ]);
-  if (!currentSlot?.registrationId || !siblingSlot?.registrationId) return;
+  if (!currentSlot?.registrationId || !siblingSlot?.registrationId) return null;
 
   const nextPosition = Math.ceil(position / 2);
   const nextSlot = await matchesRepository.findBracketSlotByPosition(
@@ -87,14 +89,14 @@ export async function maybeCreateNextRoundMatch(
     round + 1,
     nextPosition,
   );
-  if (!nextSlot) return; // round atual é a rodada final — não há próximo slot
+  if (!nextSlot) return null; // round atual é a rodada final — não há próximo slot
 
   const existingMatch = await matchesRepository.findMatchByBracketSlotId(tx, nextSlot.id);
-  if (existingMatch) return;
+  if (existingMatch) return null;
 
   const [slotA, slotB] = position % 2 === 1 ? [currentSlot, siblingSlot] : [siblingSlot, currentSlot];
 
-  await matchesRepository.createMatch(tx, {
+  return matchesRepository.createMatch(tx, {
     tournamentId,
     bracketSlotId: nextSlot.id,
     registrationAId: slotA.registrationId!,

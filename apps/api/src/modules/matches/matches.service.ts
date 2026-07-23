@@ -1,28 +1,92 @@
-import type { Prisma } from '@prisma/client';
+import type { Match, Notification, Prisma } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { getSocketServer } from '../../config/socket.js';
 import { AppError } from '../../utils/app-error.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as tournamentsRepository from '../tournaments/tournaments.repository.js';
+import * as notificationsRepository from '../notifications/notifications.repository.js';
+import { emitNewNotifications } from '../notifications/notifications.emitter.js';
 import * as matchesRepository from './matches.repository.js';
 import * as bracketGenerator from './bracket-generator.js';
 import * as placementCalculator from './placement-calculator.js';
 import type { PlacementResult, MatchOutcome } from './placement-calculator.js';
 import type { RecordMatchResultInput } from './matches.schemas.js';
 
-function broadcastBracketUpdated(tournamentId: string): void {
+// Exportado: tournaments.service (startTournament/completeTournament) e
+// este módulo (recordMatchResult) chamam pós-commit do withRls — nunca de
+// dentro da transação (fire-and-refetch antes do commit poderia refetchar
+// um estado que ainda sofre rollback).
+export function broadcastBracketUpdated(tournamentId: string): void {
   const io = getSocketServer();
   if (!io) return; // best-effort — scripts fora do server HTTP não têm socket
   io.of('/tournaments').to(`tournament:${tournamentId}`).emit('bracket:updated', { tournamentId });
 }
 
+// Duas notificações MATCH_READY por Match recém-criado (um pra cada lado),
+// citando o adversário pelo nome. Só chamada com sessão ADMIN
+// (generateBracket/recordMatchResult são sempre withRls de um endpoint
+// admin) — a visibilidade ampla de users/profiles das policies
+// self_or_admin já cobre findRegistrationOwners. Fallback displayName ??
+// username é defensivo (profile sempre existe no fluxo real de cadastro).
+async function buildMatchReadyNotifications(
+  tx: Prisma.TransactionClient,
+  tournament: { id: string; name: string },
+  createdMatches: Match[],
+): Promise<Notification[]> {
+  if (createdMatches.length === 0) return [];
+
+  const registrationIds = createdMatches.flatMap((match) => [
+    match.registrationAId!,
+    match.registrationBId!,
+  ]);
+  const owners = await matchesRepository.findRegistrationOwners(tx, registrationIds);
+  const ownerByRegistrationId = new Map(
+    owners.map((owner) => [
+      owner.id,
+      { userId: owner.userId, displayName: owner.user.profile?.displayName ?? owner.user.username },
+    ]),
+  );
+
+  const notifications: Notification[] = [];
+  for (const match of createdMatches) {
+    const ownerA = ownerByRegistrationId.get(match.registrationAId!)!;
+    const ownerB = ownerByRegistrationId.get(match.registrationBId!)!;
+    const linkPath = `/torneios/${tournament.id}/chaveamento`;
+
+    notifications.push(
+      await notificationsRepository.createNotification(tx, {
+        userId: ownerA.userId,
+        type: 'MATCH_READY',
+        title: 'Próxima disputa definida',
+        body: `Torneio ${tournament.name}: você enfrenta ${ownerB.displayName}`,
+        linkPath,
+        refId: match.id,
+      }),
+    );
+    notifications.push(
+      await notificationsRepository.createNotification(tx, {
+        userId: ownerB.userId,
+        type: 'MATCH_READY',
+        title: 'Próxima disputa definida',
+        body: `Torneio ${tournament.name}: você enfrenta ${ownerA.displayName}`,
+        linkPath,
+        refId: match.id,
+      }),
+    );
+  }
+  return notifications;
+}
+
 // Chamada por tournaments.service.startTournament, já dentro da transação
-// aberta pelo withRls dele — não abre a própria transação.
+// aberta pelo withRls dele — não abre a própria transação. Broadcast e
+// notificações ficam de fora do retorno pra quem chamou emitir só depois
+// do commit (ver comentário de broadcastBracketUpdated acima).
 export async function generateBracket(
   tx: Prisma.TransactionClient,
-  tournamentId: string,
+  tournament: { id: string; name: string },
   registrationIds: string[],
 ) {
+  const tournamentId = tournament.id;
   const plan = bracketGenerator.computeBracketPlan(registrationIds);
 
   const slotIdByRoundPosition = new Map<string, string>();
@@ -44,25 +108,35 @@ export async function generateBracket(
     }
   }
 
+  const createdMatches: Match[] = [];
+
   for (const pair of plan.matchPairs) {
-    await matchesRepository.createMatch(tx, {
+    const match = await matchesRepository.createMatch(tx, {
       tournamentId,
       bracketSlotId: slotIdByRoundPosition.get(`2-${pair.pairIndex}`)!,
       registrationAId: pair.registrationAId,
       registrationBId: pair.registrationBId,
     });
+    createdMatches.push(match);
   }
 
   for (const bye of plan.byes) {
     const nextSlotId = slotIdByRoundPosition.get(`2-${bye.pairIndex}`)!;
     await matchesRepository.updateBracketSlotRegistration(tx, nextSlotId, bye.registrationId);
-    await bracketGenerator.maybeCreateNextRoundMatch(tx, tournamentId, 2, bye.pairIndex);
+    const cascadedMatch = await bracketGenerator.maybeCreateNextRoundMatch(
+      tx,
+      tournamentId,
+      2,
+      bye.pairIndex,
+    );
+    if (cascadedMatch) createdMatches.push(cascadedMatch);
   }
 
   await tournamentsRepository.updateTournamentStatus(tx, tournamentId, 'IN_PROGRESS');
-  broadcastBracketUpdated(tournamentId);
 
-  return matchesRepository.findBracketByTournamentId(tx, tournamentId);
+  const notifications = await buildMatchReadyNotifications(tx, tournament, createdMatches);
+  const bracket = await matchesRepository.findBracketByTournamentId(tx, tournamentId);
+  return { bracket, notifications };
 }
 
 export async function getBracket(actor: AccessTokenPayload, tournamentId: string) {
@@ -80,43 +154,69 @@ export async function recordMatchResult(
   matchId: string,
   input: RecordMatchResultInput,
 ) {
-  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
-    const match = await matchesRepository.findMatchById(tx, matchId);
-    if (!match) {
-      throw new AppError('Partida não encontrada', 404);
-    }
-    if (match.status !== 'SCHEDULED') {
-      throw new AppError('Resultado já registrado para esta partida', 409);
-    }
-    if (
-      input.winnerRegistrationId !== match.registrationAId &&
-      input.winnerRegistrationId !== match.registrationBId
-    ) {
-      throw new AppError('Vencedor informado não participa desta partida', 400);
-    }
+  const { updatedMatch, tournamentId, notifications } = await withRls(
+    { userId: actor.id, role: actor.role },
+    async (tx) => {
+      const match = await matchesRepository.findMatchById(tx, matchId);
+      if (!match) {
+        throw new AppError('Partida não encontrada', 404);
+      }
+      if (match.status !== 'SCHEDULED') {
+        throw new AppError('Resultado já registrado para esta partida', 409);
+      }
+      if (
+        input.winnerRegistrationId !== match.registrationAId &&
+        input.winnerRegistrationId !== match.registrationBId
+      ) {
+        throw new AppError('Vencedor informado não participa desta partida', 400);
+      }
 
-    const updatedMatch = await matchesRepository.updateMatchResult(tx, matchId, {
-      winnerRegistrationId: input.winnerRegistrationId,
-      scoreA: input.scoreA,
-      scoreB: input.scoreB,
-    });
+      const updated = await matchesRepository.updateMatchResult(tx, matchId, {
+        winnerRegistrationId: input.winnerRegistrationId,
+        scoreA: input.scoreA,
+        scoreB: input.scoreB,
+      });
 
-    const targetSlot = await matchesRepository.findBracketSlotById(tx, match.bracketSlotId);
-    await matchesRepository.updateBracketSlotRegistration(
-      tx,
-      match.bracketSlotId,
-      input.winnerRegistrationId,
-    );
-    await bracketGenerator.maybeCreateNextRoundMatch(
-      tx,
-      match.tournamentId,
-      targetSlot.round,
-      targetSlot.position,
-    );
+      const targetSlot = await matchesRepository.findBracketSlotById(tx, match.bracketSlotId);
+      await matchesRepository.updateBracketSlotRegistration(
+        tx,
+        match.bracketSlotId,
+        input.winnerRegistrationId,
+      );
+      const nextMatch = await bracketGenerator.maybeCreateNextRoundMatch(
+        tx,
+        match.tournamentId,
+        targetSlot.round,
+        targetSlot.position,
+      );
 
-    broadcastBracketUpdated(match.tournamentId);
-    return updatedMatch;
-  });
+      let matchReadyNotifications: Notification[] = [];
+      if (nextMatch) {
+        // O torneio da partida sempre existe (FK) — não revalidar aqui,
+        // computeFinalPlacements/startTournament já garantiram o fluxo.
+        const tournament = await tournamentsRepository.findTournamentById(tx, match.tournamentId);
+        matchReadyNotifications = await buildMatchReadyNotifications(
+          tx,
+          { id: tournament!.id, name: tournament!.name },
+          [nextMatch],
+        );
+      }
+
+      return {
+        updatedMatch: updated,
+        tournamentId: match.tournamentId,
+        notifications: matchReadyNotifications,
+      };
+    },
+  );
+
+  // Pós-commit (ver comentário de broadcastBracketUpdated) — corrige um bug
+  // latente: antes, o broadcast/emit rodava dentro do withRls, então um
+  // cliente podia refetchar o bracket antes do commit terminar e ver
+  // estado obsoleto.
+  broadcastBracketUpdated(tournamentId);
+  emitNewNotifications(notifications);
+  return updatedMatch;
 }
 
 export interface FinalPlacementsResult {
