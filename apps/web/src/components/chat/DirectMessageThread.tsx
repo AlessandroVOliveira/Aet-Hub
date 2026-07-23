@@ -69,7 +69,13 @@ export function DirectMessageThread({
   }
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex flex-col">
+    // Diferente de ChatPage.tsx (raiz da rota, sem pai com altura própria),
+    // este componente já vive dentro da coluna de thread de MessagesPage,
+    // que por sua vez está no wrapper full-height da página — repetir o
+    // cálculo `h-[calc(100vh-3.5rem)] lg:h-screen` aqui duplicaria a altura
+    // (100vh dentro de 100vh). `h-full` herda do pai, que já é a medida
+    // certa via flex stretch.
+    <div className="h-full flex flex-col">
       <header className="px-4 py-3 border-b border-silver/10 flex items-center gap-3">
         <Link to="/mensagens" className="lg:hidden" aria-label="Voltar para conversas">
           <ArrowLeft className="size-5 text-silver-muted" />

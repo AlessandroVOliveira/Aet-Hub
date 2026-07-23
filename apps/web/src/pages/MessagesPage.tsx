@@ -56,7 +56,14 @@ export function MessagesPage() {
 
       <div className={`flex-1 ${userId ? 'flex' : 'hidden lg:flex'} flex-col`}>
         {userId ? (
-          <DirectMessageThread otherUserId={userId} otherDisplayNameHint={otherDisplayNameHint} />
+          // key={userId} força remount ao trocar de conversa — sem ele, o
+          // rascunho digitado (`content`) e o `isAtBottomRef` da thread
+          // anterior vazariam para a nova conversa em vez de resetar.
+          <DirectMessageThread
+            key={userId}
+            otherUserId={userId}
+            otherDisplayNameHint={otherDisplayNameHint}
+          />
         ) : (
           <div className="flex-1 grid place-items-center">
             <p className="text-sm text-silver-muted">Selecione uma conversa</p>
