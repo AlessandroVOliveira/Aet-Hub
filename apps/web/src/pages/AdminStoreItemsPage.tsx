@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminStoreItems } from '@/hooks/useAdminStoreItems';
 import { useToggleStoreItemActive } from '@/hooks/useAdminStoreItemMutations';
-import { storeItemActiveChip } from '@/utils/format';
+import { activeStatusChip } from '@/utils/format';
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
@@ -104,7 +104,7 @@ export function AdminStoreItemsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <StatusChip {...storeItemActiveChip(item.isActive)} />
+                        <StatusChip {...activeStatusChip(item.isActive)} />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2 justify-end">

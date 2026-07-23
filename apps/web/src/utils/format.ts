@@ -98,7 +98,10 @@ export const redemptionStatusTone: Record<RedemptionStatus, 'accent' | 'live' | 
   CANCELLED: 'muted',
 };
 
-export function storeItemActiveChip(isActive: boolean): {
+// Nome genérico (não "storeItem...") porque o mesmo mapeamento serve pra
+// qualquer entidade com isActive booleano (loja, comunidades) — evita
+// duplicar o helper por tela.
+export function activeStatusChip(isActive: boolean): {
   label: string;
   tone: 'accent' | 'muted';
 } {

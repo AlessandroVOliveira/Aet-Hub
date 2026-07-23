@@ -27,6 +27,8 @@ import { AdminCheckinPage } from '@/pages/AdminCheckinPage';
 import { AdminStoreItemsPage } from '@/pages/AdminStoreItemsPage';
 import { AdminStoreItemFormPage } from '@/pages/AdminStoreItemFormPage';
 import { AdminRedemptionsPage } from '@/pages/AdminRedemptionsPage';
+import { AdminCommunitiesPage } from '@/pages/AdminCommunitiesPage';
+import { AdminCommunityFormPage } from '@/pages/AdminCommunityFormPage';
 
 export const router = createBrowserRouter([
   {
@@ -66,6 +68,9 @@ export const router = createBrowserRouter([
               { path: '/admin/loja/novo', element: <AdminStoreItemFormPage /> },
               { path: '/admin/loja/:id/editar', element: <AdminStoreItemFormPage /> },
               { path: '/admin/loja/resgates', element: <AdminRedemptionsPage /> },
+              { path: '/admin/comunidades', element: <AdminCommunitiesPage /> },
+              { path: '/admin/comunidades/novo', element: <AdminCommunityFormPage /> },
+              { path: '/admin/comunidades/:id/editar', element: <AdminCommunityFormPage /> },
             ],
           },
         ],
