@@ -1,6 +1,6 @@
 // Schema da Fase 1 do AET Hub (ver docs/PRD.md, seções 5 e 13).
-// Fase 2/3 (Achievement, Community, Post, Chat, Notification etc.) ficam
-// de fora por enquanto — sem requisito de campo concreto ainda no PRD.
+// Fase 2/3 (Achievement, Community, Post, Chat etc.) ficam de fora por
+// enquanto — sem requisito de campo concreto ainda no PRD.
 //
 // RLS (Row Level Security) não é modelada aqui — o Prisma não tem suporte
 // nativo a policies. As policies, grants e as roles de runtime
@@ -84,6 +84,13 @@ enum RedemptionStatus {
   CANCELLED
 }
 
+enum NotificationType {
+  MATCH_READY
+  DIRECT_MESSAGE
+  REDEMPTION_UPDATED
+  TOURNAMENT_COMPLETED
+}
+
 model User {
   id              String    @id @default(cuid())
   username        String    @unique
@@ -109,6 +116,7 @@ model User {
   chatMessages             ChatMessage[]
   directMessagesSent       DirectMessage[] @relation("DirectMessagesSent")
   directMessagesReceived   DirectMessage[] @relation("DirectMessagesReceived")
+  notifications            Notification[]
 
   @@map("users")
 }
@@ -445,4 +453,34 @@ model DirectMessage {
   @@index([senderId, recipientId, createdAt])
   @@index([recipientId, senderId, createdAt])
   @@map("direct_messages")
+}
+
+// Notificações in-app (RF-35 estendido). Payload denormalizado
+// (title/body em pt-BR prontos + linkPath da rota interna) — mesma
+// semântica de snapshot do chat, frontend só renderiza e navega. Único
+// caminho de escrita é a função SECURITY DEFINER app_create_notification
+// (ver migration notifications_rls_policies): a sessão criadora nunca é o
+// destinatário (admin cria pra player, sender de DM cria pra recipient),
+// então não há GRANT de INSERT direto pra aet_hub_app. Sem @updatedAt de
+// propósito: o GRANT de UPDATE é só na coluna read_at (marcar lida) — um
+// @updatedAt faria o Prisma tentar setar updated_at em todo updateMany e
+// o GRANT por coluna bloquearia. id real vem de gen_random_uuid()::text
+// dentro da função (o default cuid() abaixo é só client-side e nenhum
+// código cria Notification via Prisma Client).
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String
+  linkPath  String           @map("link_path")
+  refId     String           @map("ref_id")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
