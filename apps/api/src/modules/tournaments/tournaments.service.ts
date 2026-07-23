@@ -5,6 +5,7 @@ import { AppError } from '../../utils/app-error.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as matchesRepository from '../matches/matches.repository.js';
 import * as matchesService from '../matches/matches.service.js';
+import * as notificationsRepository from '../notifications/notifications.repository.js';
 import { emitNewNotifications } from '../notifications/notifications.emitter.js';
 import * as tournamentsRepository from './tournaments.repository.js';
 import type { CreateTournamentInput, UpdateTournamentInput } from './tournaments.schemas.js';
@@ -204,38 +205,77 @@ function buildPointsTransactionEntries(params: {
 }
 
 export async function completeTournament(actor: AccessTokenPayload, id: string) {
-  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
-    const tournament = await tournamentsRepository.findTournamentById(tx, id);
-    if (!tournament) {
-      throw new AppError('Torneio não encontrado', 404);
-    }
-    if (tournament.status !== 'IN_PROGRESS') {
-      throw new AppError('Só é possível encerrar torneios em andamento', 409);
-    }
+  const { tournament: completed, finalStandings, notifications } = await withRls(
+    { userId: actor.id, role: actor.role },
+    async (tx) => {
+      const tournament = await tournamentsRepository.findTournamentById(tx, id);
+      if (!tournament) {
+        throw new AppError('Torneio não encontrado', 404);
+      }
+      if (tournament.status !== 'IN_PROGRESS') {
+        throw new AppError('Só é possível encerrar torneios em andamento', 409);
+      }
 
-    const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(tx, id);
-    const registrations = await tournamentsRepository.findRegistrationUserIds(tx, id);
-    const userIdByRegistrationId = new Map(
-      registrations.map((registration) => [registration.id, registration.userId]),
-    );
+      const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(tx, id);
+      const registrations = await tournamentsRepository.findRegistrationUserIds(tx, id);
+      const userIdByRegistrationId = new Map(
+        registrations.map((registration) => [registration.id, registration.userId]),
+      );
 
-    await tournamentsRepository.applyFinalPlacements(tx, placements);
+      await tournamentsRepository.applyFinalPlacements(tx, placements);
 
-    const pointsEntries = buildPointsTransactionEntries({
-      tournament,
-      matchOutcomes,
-      placements,
-      userIdByRegistrationId,
-      createdByUserId: actor.id,
-    });
-    if (pointsEntries.length > 0) {
-      await tournamentsRepository.createPointsTransactions(tx, pointsEntries);
-    }
+      const pointsEntries = buildPointsTransactionEntries({
+        tournament,
+        matchOutcomes,
+        placements,
+        userIdByRegistrationId,
+        createdByUserId: actor.id,
+      });
+      if (pointsEntries.length > 0) {
+        await tournamentsRepository.createPointsTransactions(tx, pointsEntries);
+      }
 
-    const completed = await tournamentsRepository.updateTournamentStatus(tx, id, 'COMPLETED');
-    const finalStandings = await tournamentsRepository.findRegistrationsWithFinalPlacement(tx, id);
+      const updated = await tournamentsRepository.updateTournamentStatus(tx, id, 'COMPLETED');
+      const standings = await tournamentsRepository.findRegistrationsWithFinalPlacement(tx, id);
 
-    broadcastTournamentCompleted(id);
-    return { tournament: completed, finalStandings };
-  });
+      // Soma dos pontos ganhos NESTA finalização (vitórias/derrotas +
+      // bônus de colocação), por userId — só para compor o texto da
+      // notificação, não é o saldo total do usuário.
+      const pointsByUserId = new Map<string, number>();
+      for (const entry of pointsEntries) {
+        pointsByUserId.set(entry.userId, (pointsByUserId.get(entry.userId) ?? 0) + entry.amount);
+      }
+
+      const tournamentNotifications = [];
+      for (const { registrationId, placement } of placements) {
+        const userId = userIdByRegistrationId.get(registrationId)!;
+        const points = pointsByUserId.get(userId) ?? 0;
+        const body =
+          points > 0
+            ? `${tournament.name}: você terminou em ${placement}º lugar e ganhou ${points} pontos`
+            : `${tournament.name}: você terminou em ${placement}º lugar`;
+
+        tournamentNotifications.push(
+          await notificationsRepository.createNotification(tx, {
+            userId,
+            type: 'TOURNAMENT_COMPLETED',
+            title: 'Torneio encerrado',
+            body,
+            linkPath: `/torneios/${id}/chaveamento`,
+            refId: id,
+          }),
+        );
+      }
+
+      return { tournament: updated, finalStandings: standings, notifications: tournamentNotifications };
+    },
+  );
+
+  // Pós-commit (ver comentário de matchesService.broadcastBracketUpdated) —
+  // move broadcastTournamentCompleted pra fora do withRls pelo mesmo
+  // motivo do bracket: emitir antes do commit podia refetchar estado que
+  // ainda sofria rollback.
+  broadcastTournamentCompleted(id);
+  emitNewNotifications(notifications);
+  return { tournament: completed, finalStandings };
 }
