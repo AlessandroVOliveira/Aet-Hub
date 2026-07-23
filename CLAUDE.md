@@ -369,6 +369,32 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   callback e emite fora (`emitNewNotifications` em
   `notifications/notifications.emitter.ts`, chamado pelos services de
   chat/matches/tournaments/store depois do `withRls`).
+- **Comunidades por jogo (RF-23/RF-39) — primeira policy de DELETE
+  self-only do projeto**: `posts`/`comments`/`post_likes` ganham
+  `*_self_delete` (`USING user_id = sessão`) porque RF-39 pede que o
+  próprio player apague o que postou — precedentes anteriores de
+  conteúdo de usuário (chat, notifications) eram todos imutáveis ou
+  admin-only. `Comment`/`PostLike` usam `onDelete: Cascade` no Prisma
+  contra `Post`: excluir o próprio post apaga comentários/curtidas DE
+  OUTROS usuários junto — isso é uma referential action do Postgres, que
+  roda como o dono da FK e **não passa pela RLS** de quem está deletando;
+  intencional aqui (dono do post é dono da thread), mas vale lembrar que
+  cascade sempre bypassa RLS, não só nesta tabela. `Community` segue o
+  padrão `store_items` de catálogo administrado: sem GRANT de DELETE em
+  lugar nenhum, desativação via `isActive` — apagar comunidade com posts
+  seria destrutivo demais pra um DELETE simples. `Post`/`Comment` seguem
+  o snapshot de autor (`authorDisplayName`) do `ChatMessage`.
+- **Novo tipo de notificação (`POST_COMMENT`) validado por dupla
+  condição**: o ramo em `app_create_notification` exige `p.user_id =
+  recipient_user_id AND p.user_id <> c.user_id` — a segunda cláusula
+  evita notificação de comentário no próprio post (o service já nem
+  chama a função nesse caso; a função é a garantia por baixo, mesmo
+  padrão de defesa em profundidade dos outros ramos). Gotcha de Postgres
+  a repetir sempre que um enum ganhar valor novo usado por uma função
+  SQL: o `ALTER TYPE ... ADD VALUE` e o `CREATE OR REPLACE FUNCTION` que
+  referencia esse valor têm que ficar em migrations (transações)
+  **separadas** — usar o valor novo na mesma transação que o criou
+  estoura "unsafe use of new value before it has been committed".
 
 ## Padrões do frontend (apps/web)
 
@@ -556,6 +582,30 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   em andamento (ex. `GET /users/me` da reidratação de sessão), abortando-a
   e derrubando a sessão — não é bug de autenticação, é artefato do dev
   server ficando defasado em relação ao `package.json`.
+- **Comunidades (`/comunidade`)**: cards da listagem reaproveitam 1:1 o
+  placeholder de capa de `TournamentsPage.tsx` (gradiente `from-ember/40
+  via-navy-dark to-navy-light` + sigla grande esmaecida) — sigla vem de
+  `community.game?.slug` quando a comunidade tem jogo, senão do próprio
+  `community.name` (comunidade "de assunto" sem jogo). Composer de
+  post/comentário (textarea + contador `/500`) é o mesmo padrão visual
+  do mock `src-lovable/src/routes/community.tsx`, mas sem nenhuma
+  dependência da stack TanStack Router do Lovable — página real usa
+  `react-router-dom` como o resto do app. Excluir post/comentário usa
+  `window.confirm` (mesmo padrão já usado em `AdminTournamentsPage`/
+  `AdminStoreItemsPage`) — **cuidado ao testar via automação de
+  browser**: `window.confirm` nativo bloqueia o event loop da página
+  (inclusive `Input.dispatchMouseEvent`/screenshot via CDP travam até o
+  dialog ser resolvido); sobrescrever `window.confirm` via
+  `javascript_tool` só vale para o `document` atual — qualquer navegação
+  de página cheia depois reseta o override, precisa reaplicar.
+  `PostComment` é o nome do tipo em `types/community.ts` — **nunca
+  `Comment`**, mesma armadilha silenciosa do `AppNotification` (colide
+  com o tipo DOM global `lib.dom`).
+- **Chip de status reaproveitado entre domínios**: `storeItemActiveChip`
+  virou `activeStatusChip` em `utils/format.ts` quando `AdminCommunitiesPage`
+  precisou do mesmo Ativo/Inativo — o helper já era genérico (só recebia
+  `boolean`), só o nome era específico da loja; renomear e atualizar os
+  usos existentes evita duplicar a mesma função por domínio.
 
 ## Banco de dados local (Docker Compose)
 
