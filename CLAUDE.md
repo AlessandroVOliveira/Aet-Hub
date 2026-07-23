@@ -327,6 +327,48 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   expressões textualmente idênticas; materializar a expressão numa
   subquery interna e referenciar a coluna resolve
   (`direct-messages.repository.ts#listConversations`).
+- **Notificações (RF-35) — escrita cruzada entre usuários via função
+  definer, não policy de INSERT**: em nenhum gancho de notificação a
+  sessão é o destinatário (admin cria pra player em match/resgate/torneio;
+  sender cria pra recipient na DM), então `notifications` NÃO tem GRANT de
+  INSERT — o único caminho de escrita é `app_create_notification(...)`
+  (`SECURITY DEFINER`, migration `notifications_rls_policies`), que valida
+  por tipo a linha "pai" que autoriza a operação (EXISTS contra
+  `direct_messages`/`matches`/`redemptions`/`registrations` + role da
+  sessão) antes de inserir. Payload denormalizado (`title`/`body` prontos
+  em pt-BR + `linkPath` + `refId`) — mesma semântica de snapshot do chat;
+  o frontend só renderiza e navega, nunca monta texto nem atravessa
+  relação. `readAt` usa a primeira policy de UPDATE **self-only** do
+  projeto E `GRANT UPDATE (read_at)` por COLUNA — a policy não consegue
+  restringir "qual coluna mudou" (RLS não vê OLD row), o grant por coluna
+  consegue; por isso o model NÃO tem `@updatedAt` (o Prisma tentaria
+  escrever `updated_at` em todo `updateMany` e quebraria o grant).
+  Criação de `Notification` via Prisma Client não existe em lugar nenhum —
+  o id vem de `gen_random_uuid()::text` na função (default `cuid()` é
+  client-side).
+- **Dois gotchas de migration descobertos na Fatia 13** (valem pra
+  qualquer tabela/função nova): (1) `session_user` é pseudo-constante
+  RESERVADA do SQL (devolve a role conectada, ex. `aet_hub_app`) —
+  variável plpgsql homônima NÃO a sobrepõe dentro de expressão SQL
+  embutida, a comparação passa a usar o nome da role silenciosamente;
+  nunca usar `session_user`/`current_user` como nome de variável
+  (migration `fix_notification_session_user_shadow`). (2) o
+  `ALTER DEFAULT PRIVILEGES ... GRANT ... TO aet_hub_app` de `roles.sql`
+  se aplica sozinho a TODA tabela nova — uma migration de RLS que só
+  concede o subconjunto desejado (ex. `SELECT` + `UPDATE (read_at)`) fica
+  silenciosamente com INSERT/UPDATE/DELETE plenos por baixo; toda
+  migration de RLS de tabela nova precisa de `REVOKE INSERT, UPDATE,
+  DELETE ... FROM aet_hub_app` ANTES dos grants estreitos (migration
+  `notifications_revoke_default_privileges`; conferir com `\dp`).
+- **Emit de socket SEMPRE pós-commit**: padrão consolidado na Fatia 13 —
+  os broadcasts de `bracket:updated`/`tournament:completed`, que rodavam
+  DENTRO do callback do `withRls`, foram movidos pra depois do retorno
+  (fire-and-refetch pré-commit fazia o cliente refetchar ANTES do commit
+  e ficar stale, além do risco de anunciar transação que sofre rollback).
+  Gancho que precisa emitir dado da transação retorna esse dado do
+  callback e emite fora (`emitNewNotifications` em
+  `notifications/notifications.emitter.ts`, chamado pelos services de
+  chat/matches/tournaments/store depois do `withRls`).
 
 ## Padrões do frontend (apps/web)
 
@@ -381,8 +423,10 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   (`useConversations.ts`: remove a entrada do mesmo `otherUserId`, insere
   no topo; cache `undefined` fica intacto, mesma regra do append). O
   evento `chat:dm` chega pelo MESMO socket/namespace do chat geral, mas
-  em hook próprio (`useDirectMessagesSocket`) montado pela página — DM só
-  notifica com `/mensagens` aberta até existir a fatia de notificações.
+  em hook próprio (`useDirectMessagesSocket`) montado pela página — a
+  entrega da MENSAGEM em si continua assim; o aviso fora da tela vem da
+  notificação (`notification:new`, hook global no `AppLayout` — ver
+  bullet de Notificações abaixo).
   `DirectMessageThread` renderiza com `key={userId}`: sem isso, trocar de
   conversa preserva o rascunho digitado e o `isAtBottomRef` da conversa
   anterior. Componente filho de um pai full-height usa `h-full`, nunca
@@ -390,6 +434,28 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   de topo da rota). Nome do outro lado numa conversa sem histórico:
   cadeia cache de conversas → `location.state.displayName` (vindo do
   ranking) → derivado da primeira mensagem → `'Player'`.
+- **Notificações (`/notificacoes`)**: primeiro socket GLOBAL do app —
+  `useNotificationsSocket` é montado pelo `AppLayout` (não por página),
+  antes do early return `if (!user)` (regra de hooks), abrindo uma
+  terceira conexão ao namespace `/chat` (junto de `useChatSocket`/
+  `useDirectMessagesSocket`; consolidar as três numa conexão
+  compartilhada é dívida registrada no próprio hook, não replicar uma
+  quarta). Evento `notification:new` faz PREPEND no cache (lista é desc —
+  contraste com o append do chat), mesmas regras de `appendChatMessage`
+  (dedupe por id, cache `undefined` intacto), incrementando `unreadCount`
+  junto. Badge de não-lidas no item do nav e no sino do header mobile
+  deriva do `unreadCount` do `GET /notifications` — não há endpoint de
+  contagem separado. Marcação de lida é automática ao abrir a página:
+  mutation disparada em `useEffect` com guarda `unreadCount > 0`
+  (mutation em effect não é setState, não fere
+  `react-hooks/set-state-in-effect`); o `onSuccess` zera SÓ o
+  `unreadCount` no cache via `setQueryData`, deixando o `readAt` dos
+  itens stale de propósito — o destaque visual das não-lidas sobrevive à
+  visita e some no próximo refetch. O tipo do frontend chama-se
+  `AppNotification`, NUNCA `Notification` — o TS resolveria
+  silenciosamente para o tipo DOM global (`lib.dom`) sem erro nem import.
+  Clique numa notificação navega pro `linkPath` vindo do servidor; o
+  frontend não monta rota por tipo.
 - **Dois padrões de campo de formulário, não misturar**: formulários
   simples com `useState` controlado (Login, Cadastro) usam o componente
   `Field` (`src/components/ui/Field.tsx`: label + input + erro,
