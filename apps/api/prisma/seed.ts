@@ -51,12 +51,34 @@ async function seedAdmin(): Promise<void> {
   console.log(`Admin de teste criado: username="${ADMIN_USERNAME}" senha="${ADMIN_PASSWORD}"`);
 }
 
+// Uma comunidade por jogo ativo (RF-23) — idempotente via findFirst por
+// gameId, já que Community não tem unique constraint em gameId (uma
+// comunidade "de assunto" sem jogo é permitida, então gameId sozinho não
+// pode ser @unique).
+async function seedCommunities(): Promise<void> {
+  const activeGames = await seedPrisma.game.findMany({ where: { isActive: true } });
+
+  for (const game of activeGames) {
+    const existing = await seedPrisma.community.findFirst({ where: { gameId: game.id } });
+    if (existing) continue;
+
+    await seedPrisma.community.create({
+      data: {
+        name: `Comunidade ${game.name}`,
+        description: `Espaço pra trocar ideia, marcar partida e comentar os torneios de ${game.name}.`,
+        gameId: game.id,
+      },
+    });
+  }
+}
+
 async function main(): Promise<void> {
   for (const game of games) {
     await seedPrisma.game.upsert({ where: { slug: game.slug }, update: {}, create: game });
   }
 
   await seedAdmin();
+  await seedCommunities();
 }
 
 main()
