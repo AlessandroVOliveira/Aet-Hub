@@ -7,6 +7,7 @@ import {
   Store,
   Users,
   MessageSquare,
+  MessageCircle,
   Shield,
   Menu,
   X,
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/ranking', label: 'Ranking', icon: BarChart3 },
   { to: '/comunidade', label: 'Comunidade', icon: Users, comingSoon: true },
   { to: '/chat', label: 'Chat', icon: MessageSquare },
+  { to: '/mensagens', label: 'Mensagens', icon: MessageCircle },
   { to: '/admin/torneios', label: 'Admin Torneios', icon: Shield, adminOnly: true },
   { to: '/admin/loja', label: 'Admin Loja', icon: Shield, adminOnly: true },
 ];
