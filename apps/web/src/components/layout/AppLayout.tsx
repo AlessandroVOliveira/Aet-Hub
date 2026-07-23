@@ -35,7 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/loja', label: 'Loja', icon: Store },
   { to: '/minhas-trocas', label: 'Minhas trocas', icon: Store },
   { to: '/ranking', label: 'Ranking', icon: BarChart3 },
-  { to: '/comunidade', label: 'Comunidade', icon: Users, comingSoon: true },
+  { to: '/comunidade', label: 'Comunidade', icon: Users },
   { to: '/chat', label: 'Chat', icon: MessageSquare },
   { to: '/mensagens', label: 'Mensagens', icon: MessageCircle },
   { to: '/notificacoes', label: 'Notificações', icon: Bell },

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Store, Swords, Trophy } from 'lucide-react';
+import { MessageCircle, Store, Swords, Trophy, Users } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMarkAllNotificationsRead } from '@/hooks/useNotificationMutations';
 import { ApiError } from '@/services/http';
@@ -15,6 +15,7 @@ const NOTIFICATION_ICONS: Record<NotificationType, typeof Swords> = {
   DIRECT_MESSAGE: MessageCircle,
   REDEMPTION_UPDATED: Store,
   TOURNAMENT_COMPLETED: Trophy,
+  POST_COMMENT: Users,
 };
 
 export function NotificationsPage() {

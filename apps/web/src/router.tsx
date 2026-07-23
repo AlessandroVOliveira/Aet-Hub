@@ -12,6 +12,9 @@ import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { ProfileEditPage } from '@/pages/ProfileEditPage';
 import { RankingPage } from '@/pages/RankingPage';
+import { CommunitiesPage } from '@/pages/CommunitiesPage';
+import { CommunityPage } from '@/pages/CommunityPage';
+import { PostDetailPage } from '@/pages/PostDetailPage';
 import { ChatPage } from '@/pages/ChatPage';
 import { MessagesPage } from '@/pages/MessagesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
@@ -45,6 +48,9 @@ export const router = createBrowserRouter([
           { path: '/loja/:id', element: <StoreItemDetailPage /> },
           { path: '/minhas-trocas', element: <MyRedemptionsPage /> },
           { path: '/ranking', element: <RankingPage /> },
+          { path: '/comunidade', element: <CommunitiesPage /> },
+          { path: '/comunidade/:id', element: <CommunityPage /> },
+          { path: '/comunidade/:id/posts/:postId', element: <PostDetailPage /> },
           { path: '/chat', element: <ChatPage /> },
           { path: '/mensagens', element: <MessagesPage /> },
           { path: '/mensagens/:userId', element: <MessagesPage /> },

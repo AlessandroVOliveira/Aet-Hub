@@ -2,7 +2,8 @@ export type NotificationType =
   | 'MATCH_READY'
   | 'DIRECT_MESSAGE'
   | 'REDEMPTION_UPDATED'
-  | 'TOURNAMENT_COMPLETED';
+  | 'TOURNAMENT_COMPLETED'
+  | 'POST_COMMENT';
 
 // Nome AppNotification de propósito: `Notification` colide silenciosamente
 // com o tipo DOM global (window.Notification) — usar esse nome causaria
