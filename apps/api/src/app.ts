@@ -12,6 +12,7 @@ import { usersRouter } from './modules/users/users.routes.js';
 import { storeRouter } from './modules/store/store.routes.js';
 import { rankingRouter } from './modules/ranking/ranking.routes.js';
 import { chatRouter } from './modules/chat/chat.routes.js';
+import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -60,6 +61,7 @@ app.use('/users', usersRouter);
 app.use('/store', storeRouter);
 app.use('/ranking', rankingRouter);
 app.use('/chat', chatRouter);
+app.use('/notifications', notificationsRouter);
 
 app.use(errorHandler);
 
