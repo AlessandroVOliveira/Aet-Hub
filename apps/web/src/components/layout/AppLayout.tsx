@@ -8,6 +8,7 @@ import {
   Users,
   MessageSquare,
   MessageCircle,
+  Bell,
   Shield,
   Menu,
   X,
@@ -15,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyWallet } from '@/hooks/useMyWallet';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useNotificationsSocket } from '@/hooks/useNotificationsSocket';
 
 interface NavItem {
   to: string;
@@ -35,14 +38,23 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/comunidade', label: 'Comunidade', icon: Users, comingSoon: true },
   { to: '/chat', label: 'Chat', icon: MessageSquare },
   { to: '/mensagens', label: 'Mensagens', icon: MessageCircle },
+  { to: '/notificacoes', label: 'Notificações', icon: Bell },
   { to: '/admin/torneios', label: 'Admin Torneios', icon: Shield, adminOnly: true },
   { to: '/admin/loja', label: 'Admin Loja', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Hooks SEMPRE antes do early return abaixo (regra de hooks) — primeira
+  // conexão de socket global do AppLayout, montada independente de qual
+  // rota está ativa (o badge de não-lidas precisa atualizar em qualquer
+  // tela, não só em /notificacoes).
+  useNotificationsSocket(token);
+  const { data: notificationsData } = useNotifications();
+  const unreadCount = notificationsData?.unreadCount ?? 0;
 
   function handleLogout() {
     logout();
@@ -61,7 +73,11 @@ export function AppLayout() {
         <BrandBlock />
         <nav className="flex-1 py-4 space-y-0.5">
           {items.map((item) => (
-            <NavLink key={item.to} item={item} />
+            <NavLink
+              key={item.to}
+              item={item}
+              badge={item.to === '/notificacoes' ? unreadCount : undefined}
+            />
           ))}
         </nav>
         <UserBlock onLogout={handleLogout} />
@@ -82,7 +98,11 @@ export function AppLayout() {
             </div>
             <nav className="flex-1 py-4 space-y-0.5" onClick={() => setDrawerOpen(false)}>
               {items.map((item) => (
-                <NavLink key={item.to} item={item} />
+                <NavLink
+                  key={item.to}
+                  item={item}
+                  badge={item.to === '/notificacoes' ? unreadCount : undefined}
+                />
               ))}
             </nav>
             <UserBlock onLogout={handleLogout} />
@@ -98,7 +118,17 @@ export function AppLayout() {
           <span className="font-display italic tracking-tight uppercase">
             AET <span className="text-ember">HUB</span>
           </span>
-          <PointsPill />
+          <div className="flex items-center gap-3">
+            <Link to="/notificacoes" className="relative" aria-label="Notificações">
+              <Bell className="size-5 text-silver-muted" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-ember text-white text-[10px] px-1.5 rounded font-mono leading-none py-0.5">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+            <PointsPill />
+          </div>
         </header>
 
         <main className="flex-1 min-w-0">
@@ -127,7 +157,7 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function NavLink({ item }: { item: NavItem }) {
+function NavLink({ item, badge }: { item: NavItem; badge?: number }) {
   const { pathname } = useLocation();
   const active = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to);
   const Icon = item.icon;
@@ -155,7 +185,8 @@ function NavLink({ item }: { item: NavItem }) {
       }`}
     >
       <Icon className="size-4" />
-      <span>{item.label}</span>
+      <span className="flex-1">{item.label}</span>
+      {!!badge && <span className="bg-ember text-white text-[10px] px-1.5 rounded font-mono">{badge}</span>}
     </Link>
   );
 }
