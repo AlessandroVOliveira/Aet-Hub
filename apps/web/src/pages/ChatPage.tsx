@@ -4,8 +4,8 @@ import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatSocket } from '@/hooks/useChatSocket';
 import { useSendChatMessage } from '@/hooks/useChatMutations';
 import { ApiError } from '@/services/http';
-import { formatTime } from '@/utils/format';
 import { Banner } from '@/components/ui/Banner';
+import { MessageBubble } from '@/components/chat/MessageBubble';
 
 // Primeira tela do app com scroll interno próprio (sem PageHeader — o
 // header compacto abaixo preserva área útil pra thread). 3.5rem = h-14 do
@@ -74,32 +74,15 @@ export function ChatPage() {
           <p className="text-sm text-silver-muted">Nenhuma mensagem ainda. Diga oi!</p>
         )}
 
-        {messages.map((message) => {
-          const mine = message.userId === user?.id;
-          return (
-            <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[70%] px-3 py-2 text-sm ${
-                  mine ? 'bg-ember text-white' : 'bg-navy-light ring-1 ring-silver/10'
-                }`}
-              >
-                {!mine && (
-                  <p className="text-[10px] font-mono text-ember mb-0.5">
-                    {message.senderDisplayName}
-                  </p>
-                )}
-                <p className="break-words">{message.content}</p>
-                <p
-                  className={`text-[9px] font-mono mt-1 ${
-                    mine ? 'text-white/70' : 'text-silver-muted'
-                  }`}
-                >
-                  {formatTime(message.createdAt)}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+        {messages.map((message) => (
+          <MessageBubble
+            key={message.id}
+            mine={message.userId === user?.id}
+            senderName={message.senderDisplayName}
+            content={message.content}
+            createdAt={message.createdAt}
+          />
+        ))}
       </div>
 
       {sendMessage.isError && (
