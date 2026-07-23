@@ -300,6 +300,33 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `current_setting('app.current_user_id', true) <> ''` (só sessão
   autenticada — mais estreito que o `USING (true)` das tabelas de
   catálogo, porque mensagem é conteúdo de usuário).
+- **Chat privado (RF-38) — extensões sobre o padrão do chat geral**
+  (`modules/chat/direct-messages.*`, mesmo módulo porque é o mesmo
+  ator/proteção/fluxo): sem tabela Conversation — a lista de conversas é
+  derivada por `DISTINCT ON` sobre o par, via `$queryRaw` **sem WHERE de
+  propósito** (a RLS de `direct_messages`, sender OU recipient = sessão,
+  é o filtro; rodar fora do `withRls` devolveria conversas de todo
+  mundo). DOIS displayNames em snapshot (`senderDisplayName` +
+  `recipientDisplayName`) pelo mesmo motivo do chat geral — e o do
+  destinatário vem da função `SECURITY DEFINER`
+  `app_dm_recipient_display_name(target_user_id)` (migration
+  `direct_messages_rls_policies`), que valida destinatário ativo E
+  devolve o nome numa chamada só; a policy de INSERT fica simples
+  (sender = sessão, recipient ≠ sender) porque existência é FK e
+  "ativo/não deletado" é regra de negócio do service, não fronteira de
+  segurança. Entrega em tempo real reusa o namespace `/chat` com room
+  por usuário (`socket.join('user:'+id)` no `on('connection')`) e emit
+  direcionado `.to('user:'+a).to('user:'+b).emit('chat:dm', ...)` — o
+  broadcast `chat:message` do chat geral segue para o namespace inteiro
+  (rooms não afetam emit de namespace). Rate limiter é a MESMA instância
+  do chat geral (orçamento único de 20 msg/min por usuário somando os
+  dois chats — instância nova dobraria a capacidade de spam). Gotcha de
+  `$queryRaw` tagged: repetir a mesma expressão com `${param}` em
+  `DISTINCT ON` e no `ORDER BY` falha com 42P10 — cada interpolação
+  vira um placeholder posicional NOVO (`$1`, `$2`) e o Postgres exige
+  expressões textualmente idênticas; materializar a expressão numa
+  subquery interna e referenciar a coluna resolve
+  (`direct-messages.repository.ts#listConversations`).
 
 ## Padrões do frontend (apps/web)
 
@@ -347,6 +374,22 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `react-hooks/set-state-in-effect`). Hora de mensagem via `formatTime`
   (`utils/format.ts`, `Intl` HH:mm) — nunca fatiar a string ISO na mão
   (timezone).
+- **Chat privado (`/mensagens`)**: bolha compartilhada com o chat geral
+  via `components/chat/MessageBubble.tsx` (`senderName` opcional — DM não
+  mostra nome, o header da thread já identifica o outro lado). A lista de
+  conversas é atualizada localmente por `upsertConversation`
+  (`useConversations.ts`: remove a entrada do mesmo `otherUserId`, insere
+  no topo; cache `undefined` fica intacto, mesma regra do append). O
+  evento `chat:dm` chega pelo MESMO socket/namespace do chat geral, mas
+  em hook próprio (`useDirectMessagesSocket`) montado pela página — DM só
+  notifica com `/mensagens` aberta até existir a fatia de notificações.
+  `DirectMessageThread` renderiza com `key={userId}`: sem isso, trocar de
+  conversa preserva o rascunho digitado e o `isAtBottomRef` da conversa
+  anterior. Componente filho de um pai full-height usa `h-full`, nunca
+  repete o `h-[calc(100vh-3.5rem)]` do wrapper (o calc é só do elemento
+  de topo da rota). Nome do outro lado numa conversa sem histórico:
+  cadeia cache de conversas → `location.state.displayName` (vindo do
+  ranking) → derivado da primeira mensagem → `'Player'`.
 - **Dois padrões de campo de formulário, não misturar**: formulários
   simples com `useState` controlado (Login, Cadastro) usam o componente
   `Field` (`src/components/ui/Field.tsx`: label + input + erro,
