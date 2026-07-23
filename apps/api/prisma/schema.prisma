@@ -89,6 +89,7 @@ enum NotificationType {
   DIRECT_MESSAGE
   REDEMPTION_UPDATED
   TOURNAMENT_COMPLETED
+  POST_COMMENT
 }
 
 model User {
@@ -117,6 +118,9 @@ model User {
   directMessagesSent       DirectMessage[] @relation("DirectMessagesSent")
   directMessagesReceived   DirectMessage[] @relation("DirectMessagesReceived")
   notifications            Notification[]
+  posts                    Post[]
+  comments                 Comment[]
+  postLikes                PostLike[]
 
   @@map("users")
 }
@@ -167,8 +171,9 @@ model Game {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tournaments Tournament[]
-  profiles    Profile[]
+  tournaments  Tournament[]
+  profiles     Profile[]
+  communities  Community[]
 
   @@map("games")
 }
@@ -483,4 +488,76 @@ model Notification {
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// Comunidades por jogo (RF-23). gameId opcional: comunidade "de assunto"
+// sem jogo é permitida. Sem DELETE em lugar nenhum — desativação via
+// isActive (padrão store_items).
+model Community {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  gameId      String?  @map("game_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  game  Game?  @relation(fields: [gameId], references: [id])
+  posts Post[]
+
+  @@index([gameId])
+  @@map("communities")
+}
+
+// Post de comunidade (RF-39). authorDisplayName é snapshot do Profile no
+// INSERT (padrão ChatMessage.senderDisplayName): NUNCA include/select
+// atravessando `user` — relação obrigatória invisível sob RLS quebra o
+// Prisma (ver CLAUDE.md).
+model Post {
+  id                String   @id @default(cuid())
+  communityId       String   @map("community_id")
+  userId            String   @map("user_id")
+  authorDisplayName String   @map("author_display_name")
+  content           String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  community Community  @relation(fields: [communityId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  comments  Comment[]
+  likes     PostLike[]
+
+  @@index([communityId, createdAt])
+  @@map("posts")
+}
+
+// Comentário em post. Mesmo snapshot de autor do Post. onDelete: Cascade —
+// excluir o post leva comentários junto (referential action não passa
+// pela RLS; intencional, ver migration de RLS).
+model Comment {
+  id                String   @id @default(cuid())
+  postId            String   @map("post_id")
+  userId            String   @map("user_id")
+  authorDisplayName String   @map("author_display_name")
+  content           String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+// Curtida de post. Um like por (post, usuário).
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@map("post_likes")
 }
