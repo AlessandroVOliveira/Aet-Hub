@@ -14,6 +14,7 @@ import { ProfileEditPage } from '@/pages/ProfileEditPage';
 import { RankingPage } from '@/pages/RankingPage';
 import { ChatPage } from '@/pages/ChatPage';
 import { MessagesPage } from '@/pages/MessagesPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { StorePage } from '@/pages/StorePage';
 import { StoreItemDetailPage } from '@/pages/StoreItemDetailPage';
 import { MyRedemptionsPage } from '@/pages/MyRedemptionsPage';
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
           { path: '/chat', element: <ChatPage /> },
           { path: '/mensagens', element: <MessagesPage /> },
           { path: '/mensagens/:userId', element: <MessagesPage /> },
+          { path: '/notificacoes', element: <NotificationsPage /> },
           {
             element: <AdminRoute />,
             children: [
