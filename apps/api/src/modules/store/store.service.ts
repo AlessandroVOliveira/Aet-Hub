@@ -3,6 +3,8 @@ import { withRls } from '../../config/rls.js';
 import { AppError } from '../../utils/app-error.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as usersRepository from '../users/users.repository.js';
+import * as notificationsRepository from '../notifications/notifications.repository.js';
+import { emitNewNotification } from '../notifications/notifications.emitter.js';
 import * as storeRepository from './store.repository.js';
 import type {
   CreateStoreItemInput,
@@ -101,34 +103,57 @@ export async function updateRedemptionStatus(
   redemptionId: string,
   input: UpdateRedemptionStatusInput,
 ) {
-  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
-    const redemption = await storeRepository.findRedemptionById(tx, redemptionId);
-    if (!redemption) {
-      throw new AppError('Resgate não encontrado', 404);
-    }
-    if (redemption.status !== 'PENDING') {
-      throw new AppError('Este resgate já foi processado', 409);
-    }
+  const { updated, notification } = await withRls(
+    { userId: actor.id, role: actor.role },
+    async (tx) => {
+      const redemption = await storeRepository.findRedemptionById(tx, redemptionId);
+      if (!redemption) {
+        throw new AppError('Resgate não encontrado', 404);
+      }
+      if (redemption.status !== 'PENDING') {
+        throw new AppError('Este resgate já foi processado', 409);
+      }
 
-    const updated = await storeRepository.updateRedemptionStatus(tx, redemptionId, {
-      status: input.status,
-      fulfilledAt: input.status === 'FULFILLED' ? new Date() : null,
-    });
-
-    if (input.status === 'CANCELLED') {
-      await storeRepository.createRedemptionRefundEntry(tx, {
-        userId: redemption.userId,
-        amount: redemption.costInCoins,
-        description: `Estorno do resgate cancelado: ${redemption.storeItem.name}`,
-        createdByUserId: actor.id,
+      const updatedRedemption = await storeRepository.updateRedemptionStatus(tx, redemptionId, {
+        status: input.status,
+        fulfilledAt: input.status === 'FULFILLED' ? new Date() : null,
       });
 
-      const item = await storeRepository.findStoreItemById(tx, redemption.storeItemId);
-      if (item !== null && item.stock !== null) {
-        await storeRepository.incrementStoreItemStock(tx, item.id);
-      }
-    }
+      if (input.status === 'CANCELLED') {
+        await storeRepository.createRedemptionRefundEntry(tx, {
+          userId: redemption.userId,
+          amount: redemption.costInCoins,
+          description: `Estorno do resgate cancelado: ${redemption.storeItem.name}`,
+          createdByUserId: actor.id,
+        });
 
-    return updated;
-  });
+        const item = await storeRepository.findStoreItemById(tx, redemption.storeItemId);
+        if (item !== null && item.stock !== null) {
+          await storeRepository.incrementStoreItemStock(tx, item.id);
+        }
+      }
+
+      const itemName = redemption.storeItem.name;
+      const notificationBody =
+        input.status === 'FULFILLED'
+          ? `Seu resgate de "${itemName}" foi cumprido — combine a entrega com a organização`
+          : `Seu resgate de "${itemName}" foi cancelado e as moedas foram estornadas`;
+
+      const createdNotification = await notificationsRepository.createNotification(tx, {
+        userId: redemption.userId,
+        type: 'REDEMPTION_UPDATED',
+        title: input.status === 'FULFILLED' ? 'Resgate cumprido' : 'Resgate cancelado',
+        body: notificationBody,
+        linkPath: '/minhas-trocas',
+        refId: redemption.id,
+      });
+
+      return { updated: updatedRedemption, notification: createdNotification };
+    },
+  );
+
+  // Pós-commit (mesmo motivo de direct-messages.service.ts) — retorno do
+  // service inalterado, só o efeito colateral de notificar é novo.
+  emitNewNotification(notification);
+  return updated;
 }
