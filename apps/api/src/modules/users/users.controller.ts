@@ -12,11 +12,6 @@ export async function updateMyProfileHandler(req: Request, res: Response): Promi
   res.status(200).json({ profile });
 }
 
-export async function listGamesHandler(req: Request, res: Response): Promise<void> {
-  const games = await usersService.listGames(req.user!);
-  res.status(200).json({ games });
-}
-
 export async function getMyHistoryHandler(req: Request, res: Response): Promise<void> {
   const history = await usersService.getMyHistory(req.user!);
   res.status(200).json(history);

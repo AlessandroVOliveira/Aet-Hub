@@ -7,12 +7,13 @@ import * as matchesRepository from '../matches/matches.repository.js';
 import * as matchesService from '../matches/matches.service.js';
 import * as notificationsRepository from '../notifications/notifications.repository.js';
 import { emitNewNotifications } from '../notifications/notifications.emitter.js';
+import * as gamesRepository from '../games/games.repository.js';
 import * as tournamentsRepository from './tournaments.repository.js';
 import type { CreateTournamentInput, UpdateTournamentInput } from './tournaments.schemas.js';
 
 export async function createTournament(actor: AccessTokenPayload, input: CreateTournamentInput) {
   return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
-    const game = await tournamentsRepository.findGameById(tx, input.gameId);
+    const game = await gamesRepository.findGameById(tx, input.gameId);
     if (!game) {
       throw new AppError('Jogo não encontrado', 404);
     }
@@ -48,7 +49,7 @@ export async function updateTournament(
       throw new AppError('Torneio não encontrado', 404);
     }
 
-    const game = await tournamentsRepository.findGameById(tx, input.gameId);
+    const game = await gamesRepository.findGameById(tx, input.gameId);
     if (!game) {
       throw new AppError('Jogo não encontrado', 404);
     }

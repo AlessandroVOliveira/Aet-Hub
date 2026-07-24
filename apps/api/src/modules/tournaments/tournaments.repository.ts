@@ -4,16 +4,6 @@ import type { BracketType, Prisma, TiebreakerRule, TournamentStatus } from '@pri
 // importar o `prisma` singleton aqui, senão o SET LOCAL de app.current_role
 // feito pelo caller não vale para estas queries.
 
-export function findGameById(tx: Prisma.TransactionClient, gameId: string) {
-  return tx.game.findUnique({ where: { id: gameId }, select: { id: true } });
-}
-
-// Usado pelo módulo users (GET /users/games) para o player saber quais
-// jogos são válidos como favoriteGameId ao editar o perfil (RF-26).
-export function listActiveGames(tx: Prisma.TransactionClient) {
-  return tx.game.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
-}
-
 export interface TournamentWriteData {
   name: string;
   gameId: string;

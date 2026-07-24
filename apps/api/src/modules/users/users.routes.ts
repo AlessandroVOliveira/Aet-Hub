@@ -7,7 +7,6 @@ import {
   getMyHistoryHandler,
   getMyProfileHandler,
   getMyWalletHandler,
-  listGamesHandler,
   updateMyProfileHandler,
 } from './users.controller.js';
 
@@ -19,4 +18,3 @@ usersRouter.get('/me', asyncHandler(getMyProfileHandler));
 usersRouter.patch('/me', validateBody(updateProfileSchema), asyncHandler(updateMyProfileHandler));
 usersRouter.get('/me/history', asyncHandler(getMyHistoryHandler));
 usersRouter.get('/me/points', asyncHandler(getMyWalletHandler));
-usersRouter.get('/games', asyncHandler(listGamesHandler));

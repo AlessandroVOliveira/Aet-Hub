@@ -3,7 +3,7 @@ import { AppError } from '../../utils/app-error.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as matchesRepository from '../matches/matches.repository.js';
 import * as registrationsRepository from '../registrations/registrations.repository.js';
-import * as tournamentsRepository from '../tournaments/tournaments.repository.js';
+import * as gamesRepository from '../games/games.repository.js';
 import * as usersRepository from './users.repository.js';
 import type { UpdateProfileInput } from './users.schemas.js';
 
@@ -20,19 +20,13 @@ export async function getMyProfile(actor: AccessTokenPayload) {
 export async function updateMyProfile(actor: AccessTokenPayload, input: UpdateProfileInput) {
   return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
     if (input.favoriteGameId) {
-      const game = await tournamentsRepository.findGameById(tx, input.favoriteGameId);
+      const game = await gamesRepository.findGameById(tx, input.favoriteGameId);
       if (!game) {
         throw new AppError('Jogo não encontrado', 404);
       }
     }
     return usersRepository.updateProfile(tx, actor.id, input);
   });
-}
-
-export async function listGames(actor: AccessTokenPayload) {
-  return withRls({ userId: actor.id, role: actor.role }, (tx) =>
-    tournamentsRepository.listActiveGames(tx),
-  );
 }
 
 function toMatchHistoryEntry(
