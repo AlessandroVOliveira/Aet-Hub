@@ -462,21 +462,30 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   continua funcionando igual através de páginas porque é chaveado por
   `newsItemId`, não por posição/página.
 - **Refresh-se-obsoleto nunca segura uma transação Prisma através de I/O
-  externo**: `feed.service.ts#listNews` faz (a) checagem de staleness
-  (`MAX(fetchedAt)` por categoria) numa transação curta, (b) fetch à API
-  de notícias **fora** de qualquer `withRls` (chamada de rede lenta
-  dentro de uma transação interativa seguraria conexão do pool), (c)
-  upsert do que foi buscado numa transação curta (também dentro de um
-  `.catch` — um artigo malformado nunca deve derrubar a Home, já
-  aconteceu na prática: `id` numérico da APITube quebrando o INSERT
-  antes da troca de provedor), (d) leitura das linhas atuais — **sempre
-  roda**, refresh tendo acontecido ou não. `feed.news-client.ts` nunca
-  lança (todo erro de rede/status/parsing vira artigo descartado/array
-  vazio, logado): é o que garante fail-open — a API de notícias fora do
-  ar nunca impede a Home de mostrar o que já tinha em cache. Diferente do
-  fail-closed de `utils/cep.ts` (gate de segurança de cadastro), aqui é
-  conteúdo editorial — degradar servindo cache stale é sempre preferível
-  a quebrar a Home.
+  externo, e nem segura a response**: `feed.service.ts
+  #listNews` faz (a) checagem de staleness (`MAX(fetchedAt)` por
+  categoria) numa transação curta, (b) se obsoleto, dispara
+  `refreshNewsInBackground` com `void` — **sem `await`** — então fetch à
+  API de notícias e upsert do que foi buscado rodam depois da response já
+  ter sido montada, nunca bloqueando quem abriu a Home (motivo: o fetch
+  sequencial de `/details` a ~1/s, ver bullet de rate limit abaixo,
+  segurava a Home por até ~9-12s no pior caso; identificado pelo usuário
+  ao notar a demora, não por bug report), (c) leitura das linhas
+  atuais — **sempre roda em seguida**, refresh tendo disparado ou não, e
+  sempre reflete o cache de ANTES do refresh (quem gatilhou o refresh só
+  vê o artigo novo na visita seguinte, não na mesma carga). Dentro de
+  `refreshNewsInBackground`, o upsert continua numa transação curta e
+  dentro de um `.catch` próprio (não há mais nenhuma request esperando
+  essa promise pra propagar erro pra cima) — um artigo malformado nunca
+  deve derrubar a Home, já aconteceu na prática: `id` numérico da APITube
+  quebrando o INSERT antes da troca de provedor. `feed.news-client.ts`
+  nunca lança (todo erro de rede/status/parsing vira artigo descartado/
+  array vazio, logado): é o que garante fail-open — a API de notícias
+  fora do ar nunca impede a Home de mostrar o que já tinha em cache.
+  Diferente do fail-closed de `utils/cep.ts` (gate de segurança de
+  cadastro), aqui é conteúdo editorial — degradar servindo cache stale é
+  sempre preferível a quebrar a Home (e agora nunca chega a demorar pro
+  usuário perceber).
 - **Sem notificação para comentário em notícia**: ao contrário de
   `POST_COMMENT` (Comunidades), `app_create_notification` autoriza cada
   tipo via `EXISTS` contra uma linha-pai **pertencente ao destinatário**

@@ -56,15 +56,36 @@ function toNewsItemView(item: {
   };
 }
 
+async function refreshNewsInBackground(
+  rlsCtx: { userId: string; role: AccessTokenPayload['role'] },
+  category: 'GENERAL' | 'ESPORTS',
+): Promise<void> {
+  const articles = await feedNewsClient.fetchNewsArticles(category).catch(() => []);
+  if (articles.length === 0) {
+    return;
+  }
+
+  // Mesmo fail-open do fetch: um artigo com formato inesperado nunca deve
+  // derrubar a Home. Se o insert falhar, só loga — não há request esperando
+  // essa promise pra propagar o erro.
+  await withRls(rlsCtx, (tx) => feedRepository.insertFetchedArticles(tx, category, articles)).catch(
+    (error) => {
+      console.error('[feed] falha ao gravar notícias buscadas em background', error);
+    },
+  );
+}
+
 // Refresh-se-obsoleto: (a) checagem de staleness em transação curta, (b)
-// fetch externo FORA de qualquer transação Prisma (nunca segurar uma
-// transação interativa através de uma chamada de rede), (c) upsert do que
-// foi buscado em transação curta, (d) leitura das linhas atuais — SEMPRE
-// roda, refresh tendo acontecido ou não. É isto que garante fail-open: uma
-// freenewsapi.io fora do ar nunca impede a Home de mostrar o que já tinha
-// em cache. Refresh só roda na PRIMEIRA página (cursor ausente) — "Ver
-// mais antigas" é só leitura do que já está no cache, nunca precisa (nem
-// deveria) buscar notícia nova pra isso.
+// fetch externo + upsert disparados em BACKGROUND (sem await) — a resposta
+// nunca espera a freenewsapi.io, só o que já está em cache; quem gatilha o
+// refresh não vê as notícias novíssimas nessa mesma carga, só na próxima
+// vez que a query rodar. (c) leitura das linhas atuais — SEMPRE roda,
+// refresh tendo disparado ou não. Fail-open continua valendo (erro de rede/
+// insert só loga, nunca propaga): uma freenewsapi.io fora do ar nunca
+// impede a Home de mostrar o que já tinha em cache. Refresh só roda na
+// PRIMEIRA página (cursor ausente) — "Ver mais antigas" é só leitura do
+// que já está no cache, nunca precisa (nem deveria) buscar notícia nova
+// pra isso.
 export async function listNews(
   actor: AccessTokenPayload,
   category: 'GENERAL' | 'ESPORTS',
@@ -80,17 +101,7 @@ export async function listNews(
     const isStale = !lastFetchedAt || Date.now() - lastFetchedAt.getTime() > NEWS_REFRESH_TTL_MS;
 
     if (isStale) {
-      const articles = await feedNewsClient.fetchNewsArticles(category).catch(() => []);
-      if (articles.length > 0) {
-        // Mesmo fail-open do fetch: um artigo com formato inesperado nunca
-        // deve derrubar a Home. Se o insert falhar, só loga e segue pra
-        // leitura do que já está em cache.
-        await withRls(rlsCtx, (tx) =>
-          feedRepository.insertFetchedArticles(tx, category, articles),
-        ).catch((error) => {
-          console.error('[feed] falha ao gravar notícias buscadas', error);
-        });
-      }
+      void refreshNewsInBackground(rlsCtx, category);
     }
   }
 
