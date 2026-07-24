@@ -7,6 +7,7 @@ import { useCreatePost, useDeletePost, useLikePost, useUnlikePost } from '@/hook
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
+import { ReportForm } from '@/components/reports/ReportForm';
 import { formatDate } from '@/utils/format';
 import type { Post } from '@/types/community';
 
@@ -142,7 +143,7 @@ function PostCard({ communityId, post }: { communityId: string; post: Post }) {
         </Banner>
       )}
 
-      <div className="mt-3 flex items-center gap-4 font-mono text-[10px] text-silver-muted uppercase">
+      <div className="mt-3 flex items-center gap-4 font-mono text-[10px] text-silver-muted uppercase flex-wrap">
         <button
           type="button"
           disabled={toggleLike.isPending}
@@ -154,7 +155,7 @@ function PostCard({ communityId, post }: { communityId: string; post: Post }) {
         <Link to={`/comunidade/${communityId}/posts/${post.id}`} className="hover:text-ember">
           Comentar ({post.commentCount})
         </Link>
-        {isOwner && (
+        {isOwner ? (
           <button
             type="button"
             disabled={deletePost.isPending}
@@ -163,6 +164,8 @@ function PostCard({ communityId, post }: { communityId: string; post: Post }) {
           >
             Excluir
           </button>
+        ) : (
+          <ReportForm contentType="POST" contentId={post.id} triggerClassName="ml-auto" />
         )}
       </div>
     </article>

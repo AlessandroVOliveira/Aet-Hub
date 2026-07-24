@@ -108,9 +108,11 @@ export function DirectMessageThread({
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
+            id={message.id}
             mine={message.senderId === user?.id}
             content={message.content}
             createdAt={message.createdAt}
+            reportContentType="DIRECT_MESSAGE"
           />
         ))}
       </div>

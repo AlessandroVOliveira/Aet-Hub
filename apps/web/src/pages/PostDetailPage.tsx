@@ -7,6 +7,7 @@ import { useCreateComment, useDeleteComment } from '@/hooks/useCommentMutations'
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
+import { ReportForm } from '@/components/reports/ReportForm';
 import { formatDate } from '@/utils/format';
 import type { PostComment } from '@/types/community';
 
@@ -74,7 +75,7 @@ export function PostDetailPage() {
             </Banner>
           )}
 
-          <div className="mt-3 flex items-center gap-4 font-mono text-[10px] text-silver-muted uppercase">
+          <div className="mt-3 flex items-center gap-4 font-mono text-[10px] text-silver-muted uppercase flex-wrap">
             <button
               type="button"
               disabled={toggleLike.isPending}
@@ -83,7 +84,7 @@ export function PostDetailPage() {
             >
               {post.likedByMe ? 'Descurtir' : 'Curtir'} ({post.likeCount})
             </button>
-            {isOwner && (
+            {isOwner ? (
               <button
                 type="button"
                 disabled={deletePost.isPending}
@@ -92,6 +93,8 @@ export function PostDetailPage() {
               >
                 Excluir post
               </button>
+            ) : (
+              <ReportForm contentType="POST" contentId={post.id} triggerClassName="ml-auto" />
             )}
           </div>
         </article>
@@ -131,12 +134,12 @@ function CommentRow({
 
   return (
     <article className="bg-navy-light ring-1 ring-silver/10 p-3">
-      <header className="flex items-center justify-between mb-1">
+      <header className="flex items-center justify-between mb-1 flex-wrap gap-1">
         <span className="font-mono text-xs">
           <span className="text-silver">@{comment.authorDisplayName}</span>
           <span className="text-silver-muted ml-2">{formatDate(comment.createdAt)}</span>
         </span>
-        {isOwner && (
+        {isOwner ? (
           <button
             type="button"
             disabled={deleteComment.isPending}
@@ -145,6 +148,8 @@ function CommentRow({
           >
             Excluir
           </button>
+        ) : (
+          <ReportForm contentType="COMMENT" contentId={comment.id} />
         )}
       </header>
       <p className="text-sm text-silver text-pretty whitespace-pre-wrap">{comment.content}</p>

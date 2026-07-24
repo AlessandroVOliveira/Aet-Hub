@@ -42,6 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin/torneios', label: 'Admin Torneios', icon: Shield, adminOnly: true },
   { to: '/admin/loja', label: 'Admin Loja', icon: Shield, adminOnly: true },
   { to: '/admin/comunidades', label: 'Admin Comunidades', icon: Shield, adminOnly: true },
+  { to: '/admin/denuncias', label: 'Admin Denúncias', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout() {

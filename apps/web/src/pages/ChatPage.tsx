@@ -77,10 +77,12 @@ export function ChatPage() {
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
+            id={message.id}
             mine={message.userId === user?.id}
             senderName={message.senderDisplayName}
             content={message.content}
             createdAt={message.createdAt}
+            reportContentType="CHAT_MESSAGE"
           />
         ))}
       </div>

@@ -29,6 +29,7 @@ import { AdminStoreItemFormPage } from '@/pages/AdminStoreItemFormPage';
 import { AdminRedemptionsPage } from '@/pages/AdminRedemptionsPage';
 import { AdminCommunitiesPage } from '@/pages/AdminCommunitiesPage';
 import { AdminCommunityFormPage } from '@/pages/AdminCommunityFormPage';
+import { AdminReportsPage } from '@/pages/AdminReportsPage';
 
 export const router = createBrowserRouter([
   {
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
               { path: '/admin/comunidades', element: <AdminCommunitiesPage /> },
               { path: '/admin/comunidades/novo', element: <AdminCommunityFormPage /> },
               { path: '/admin/comunidades/:id/editar', element: <AdminCommunityFormPage /> },
+              { path: '/admin/denuncias', element: <AdminReportsPage /> },
             ],
           },
         ],

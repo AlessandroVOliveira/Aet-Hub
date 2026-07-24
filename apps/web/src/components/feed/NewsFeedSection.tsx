@@ -5,6 +5,7 @@ import { useNewsComments } from '@/hooks/useNewsComments';
 import { useCreateNewsComment, useDeleteNewsComment } from '@/hooks/useNewsCommentMutations';
 import { ApiError } from '@/services/http';
 import { Banner } from '@/components/ui/Banner';
+import { ReportForm } from '@/components/reports/ReportForm';
 import { formatDate } from '@/utils/format';
 import type { NewsCategory, NewsComment, NewsItem } from '@/types/feed';
 
@@ -234,12 +235,12 @@ function NewsCommentRow({
 
   return (
     <article className="bg-navy-dark p-3">
-      <header className="flex items-center justify-between mb-1">
+      <header className="flex items-center justify-between mb-1 flex-wrap gap-1">
         <span className="font-mono text-[10px]">
           <span className="text-silver">@{comment.authorDisplayName}</span>
           <span className="text-silver-muted ml-2">{formatDate(comment.createdAt)}</span>
         </span>
-        {isOwner && (
+        {isOwner ? (
           <button
             type="button"
             disabled={deleteComment.isPending}
@@ -248,6 +249,8 @@ function NewsCommentRow({
           >
             Excluir
           </button>
+        ) : (
+          <ReportForm contentType="NEWS_COMMENT" contentId={comment.id} />
         )}
       </header>
       <p className="text-sm text-silver text-pretty whitespace-pre-wrap">{comment.content}</p>

@@ -2,6 +2,7 @@ import type { CheckinMethod } from '@/types/checkin';
 import type { MatchResult } from '@/types/profile';
 import type { RegistrationStatus } from '@/types/registration';
 import type { RedemptionStatus } from '@/types/store';
+import type { ReportedContentType, ReportStatus } from '@/types/report';
 import type { BracketType, TiebreakerRule, TournamentStatus } from '@/types/tournament';
 
 export function formatCurrencyFromCents(cents: number): string {
@@ -107,3 +108,21 @@ export function activeStatusChip(isActive: boolean): {
 } {
   return isActive ? { label: 'Ativo', tone: 'accent' } : { label: 'Inativo', tone: 'muted' };
 }
+
+export const reportedContentTypeLabels: Record<ReportedContentType, string> = {
+  POST: 'Post',
+  COMMENT: 'Comentário',
+  CHAT_MESSAGE: 'Chat geral',
+  DIRECT_MESSAGE: 'Mensagem privada',
+  NEWS_COMMENT: 'Comentário de notícia',
+};
+
+export const reportStatusLabels: Record<ReportStatus, string> = {
+  PENDING: 'Pendente',
+  DISMISSED: 'Dispensada',
+};
+
+export const reportStatusTone: Record<ReportStatus, 'accent' | 'live' | 'muted'> = {
+  PENDING: 'live',
+  DISMISSED: 'muted',
+};
