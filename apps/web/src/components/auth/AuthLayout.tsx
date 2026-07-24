@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import logoIcon from '@/assets/brand/logo-icon.png';
+import logoWordmark from '@/assets/brand/logo-wordmark.png';
+import hexNeonBg from '@/assets/auth/hex-neon-bg.svg';
 
 interface AuthLayoutProps {
   eyebrow: string;
@@ -11,16 +14,16 @@ export function AuthLayout({ eyebrow, title, accent, children }: AuthLayoutProps
   return (
     <div className="min-h-screen bg-navy-dark text-silver grid md:grid-cols-2">
       <div className="relative hidden md:flex flex-col justify-between p-10 bg-navy-light overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ backgroundImage: `url(${hexNeonBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        />
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none overflow-hidden">
           <div className="w-full h-1 bg-silver animate-scanline" />
         </div>
         <div className="flex items-center gap-3">
-          <div className="size-10 bg-navy-dark ring-1 ring-silver/20 grid place-items-center font-display italic text-ember text-sm">
-            AET
-          </div>
-          <span className="font-display text-xl uppercase italic tracking-tighter">
-            AET <span className="text-ember">HUB</span>
-          </span>
+          <img src={logoIcon} alt="AET Hub" className="size-10 object-contain shrink-0" />
+          <img src={logoWordmark} alt="AET Hub" className="h-6 w-auto object-contain" />
         </div>
         <div className="relative">
           <p className="font-mono text-[10px] text-ember mb-2">// FRONTEIRA COMPETITIVA</p>

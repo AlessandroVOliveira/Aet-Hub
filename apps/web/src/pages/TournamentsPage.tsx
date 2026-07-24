@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { Banner } from '@/components/ui/Banner';
 import { formatCurrencyFromCents, formatDate, tournamentStatusLabels, tournamentStatusTone } from '@/utils/format';
+import logoEmblema from '@/assets/brand/logo-emblema.png';
 
 export function TournamentsPage() {
   const { data, isLoading, isError, error } = useOpenTournaments();
@@ -41,11 +42,11 @@ export function TournamentsPage() {
               >
                 <div className="relative aspect-video bg-navy-dark overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-ember/40 via-navy-dark to-navy-light" />
-                  <div className="absolute inset-0 grid place-items-center">
-                    <span className="font-display text-6xl italic tracking-tighter text-silver/20">
-                      {tournament.game.slug.slice(0, 4).toUpperCase()}
-                    </span>
-                  </div>
+                  <img
+                    src={logoEmblema}
+                    alt=""
+                    className="absolute inset-6 w-[calc(100%-3rem)] h-[calc(100%-3rem)] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                  />
                   <div className="absolute top-3 left-3">
                     <StatusChip
                       label={tournamentStatusLabels[tournament.status]}

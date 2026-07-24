@@ -18,6 +18,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMyWallet } from '@/hooks/useMyWallet';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useNotificationsSocket } from '@/hooks/useNotificationsSocket';
+import logoIcon from '@/assets/brand/logo-icon.png';
+import logoWordmark from '@/assets/brand/logo-wordmark.png';
 
 interface NavItem {
   to: string;
@@ -118,9 +120,7 @@ export function AppLayout() {
           <button onClick={() => setDrawerOpen(true)} aria-label="Abrir menu">
             <Menu className="size-5" />
           </button>
-          <span className="font-display italic tracking-tight uppercase">
-            AET <span className="text-ember">HUB</span>
-          </span>
+          <img src={logoWordmark} alt="AET Hub" className="h-7 w-auto object-contain" />
           <div className="flex items-center gap-3">
             <Link to="/notificacoes" className="relative" aria-label="Notificações">
               <Bell className="size-5 text-silver-muted" />
@@ -145,14 +145,10 @@ export function AppLayout() {
 function BrandBlock({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="flex items-center gap-3 p-4 border-b border-silver/10">
-      <div className="size-10 bg-navy-dark ring-1 ring-silver/20 grid place-items-center font-display italic text-ember">
-        AET
-      </div>
+      <img src={logoIcon} alt="AET Hub" className="size-10 object-contain shrink-0" />
       {!compact && (
         <div>
-          <p className="font-display text-lg tracking-tighter uppercase italic leading-none">
-            AET <span className="text-ember">HUB</span>
-          </p>
+          <img src={logoWordmark} alt="AET Hub" className="h-6 w-auto object-contain" />
           <p className="font-mono text-[9px] text-silver-muted mt-1">CONSOLE // V.01</p>
         </div>
       )}
