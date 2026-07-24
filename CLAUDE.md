@@ -395,6 +395,97 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   referencia esse valor têm que ficar em migrations (transações)
   **separadas** — usar o valor novo na mesma transação que o criou
   estoura "unsafe use of new value before it has been committed".
+- **Feed principal de notícias (RF-36) — conteúdo externo, não gerado por
+  usuário**: diferente de Comunidades (posts de player), `NewsItem`
+  (`modules/feed/`) vem de uma API terceira (freenewsapi.io, header
+  `x-api-key`), cacheada localmente. Não tem `userId` — não pertence a
+  ninguém do Hub — então o RLS de `news_items` é **qualquer sessão
+  autenticada pode INSERT**, não só admin (diferente de `communities`):
+  quem popula a tabela é o próprio refresh-se-obsoleto disparado por
+  QUALQUER leitura de `GET /feed/news`, e restringir a admin quebraria
+  isso pra ~100% das requisições reais sem ganho de segurança (o corpo do
+  INSERT nunca é texto livre de usuário, sempre o resultado mapeado de
+  `feed.news-client.ts`). Sem UPDATE em lugar nenhum — conteúdo de
+  notícia publicada não muda, `createMany({ skipDuplicates: true })` com
+  `@@unique([category, externalId])` cobre o dedup do refetch sem custo
+  de N upserts. **Trocada de API em produção**: a primeira escolha
+  (APITube) foi testada com chave real e descartada — o plano free
+  trunca `description`/`url`/`imageUrl` injetando o literal
+  `"...(+N chars hidden)...[Upgrade subscription plan]"` DENTRO do valor
+  do campo (não é limite de docs, é o dado de verdade devolvido pela API
+  — confirmado lendo o campo bruto no banco e via `.slice()` no browser),
+  inutilizando link/imagem de quase todo artigo.
+- **freenewsapi.io é dois endpoints, não um** — `GET /news` (lista, só
+  `uuid`/`title`/`published_at`/`publisher`) e `GET /details?uuid=X` (um
+  artigo por vez, sem batch: `thumbnail`/`original_url`/`incipit`/`body`).
+  **Gotcha real descoberto testando com chave de verdade**: a resposta de
+  `/details` vem envelopada em `{"data": {...}}` (diferente de `/news`,
+  que devolve o array direto em `data`) — assumir os campos soltos faz
+  `original_url`/`thumbnail`/`incipit` virarem `undefined` silenciosamente
+  e o artigo inteiro ser descartado no filtro de URL, sem nenhum erro
+  logado (o request em si tinha sido 200 OK). **Rate limit apertado**
+  (~1 req/s, 429 "Too Many Requests" com `retry_after_ms`) — buscar
+  `/details` de vários artigos via `Promise.all` estoura quase todo
+  request; `feed.news-client.ts` faz isso **sequencial**, com um
+  `sleep(1100ms)` entre chamadas (`ARTICLES_PER_REFRESH = 8` por
+  categoria/refresh — o teto existe justamente pra limitar quanto tempo
+  o refresh-se-obsoleto trava a request quando dispara, já que 8 chamadas
+  seriais ~1/s levam uns 9-12s no pior caso).
+- **Filtro de idioma fixo em português do Brasil**: `buildListParams`
+  (`feed.news-client.ts`) sempre manda `language=pt-419` — código real
+  usado pela freenewsapi.io pra português do Brasil (confirmado via `GET
+  /languages?country=BR`, que devolve exatamente `["pt-419"]`; NÃO é
+  BCP-47 padrão, seria `pt-BR` — é convenção própria da API, mesmo padrão
+  usado pra `es-419` no espanhol latino-americano). Todo o Hub é pt-BR
+  (RF-03 e o resto do produto não tem i18n), então não faz sentido o
+  feed trazer notícia em outro idioma; sem esse parâmetro a lista vinha
+  misturada (inglês, japonês, russo, chinês, etc.).
+- **Paginação por cursor no feed ("Ver notícias mais antigas")** —
+  primeira lista paginada do projeto (`posts`/`comments`/`notifications`
+  são todos teto fixo sem paginação real). `GET /feed/news` aceita
+  `cursor` opcional (id do último item da página anterior); sem cursor =
+  primeira página (9 itens, dispara o refresh-se-obsoleto); com cursor =
+  página seguinte (3 itens, **nunca** dispara refresh — "ver mais
+  antigas" é leitura pura do cache, não busca notícia nova).
+  `feed.repository.ts#listNewsPage` ordena por `[{ publishedAt: 'desc' },
+  { id: 'desc' }]` (desempate por id — vários artigos podem ter o mesmo
+  `published_at`, sem o desempate o cursor pode pular/repetir linha) e
+  busca `take + 1` só pra saber se existe próxima página sem precisar de
+  `COUNT(*)` separado; `nextCursor: null` quando a página devolve `take`
+  ou menos linhas — é o que desliga o botão "Ver mais antigas" sozinho.
+  Como o refresh só insere (nunca busca histórico retroativo), o "chão"
+  da paginação é sempre o artigo mais antigo já capturado desde que a
+  feature entrou no ar — não existe backfill de notícia anterior a isso.
+  Frontend usa `useInfiniteQuery` (`hooks/useNews.ts`, primeiro uso desse
+  padrão no projeto) — `NewsFeedSection` achata `data.pages` numa lista
+  só pra renderizar, o estado de `expanded` (comentário por card)
+  continua funcionando igual através de páginas porque é chaveado por
+  `newsItemId`, não por posição/página.
+- **Refresh-se-obsoleto nunca segura uma transação Prisma através de I/O
+  externo**: `feed.service.ts#listNews` faz (a) checagem de staleness
+  (`MAX(fetchedAt)` por categoria) numa transação curta, (b) fetch à API
+  de notícias **fora** de qualquer `withRls` (chamada de rede lenta
+  dentro de uma transação interativa seguraria conexão do pool), (c)
+  upsert do que foi buscado numa transação curta (também dentro de um
+  `.catch` — um artigo malformado nunca deve derrubar a Home, já
+  aconteceu na prática: `id` numérico da APITube quebrando o INSERT
+  antes da troca de provedor), (d) leitura das linhas atuais — **sempre
+  roda**, refresh tendo acontecido ou não. `feed.news-client.ts` nunca
+  lança (todo erro de rede/status/parsing vira artigo descartado/array
+  vazio, logado): é o que garante fail-open — a API de notícias fora do
+  ar nunca impede a Home de mostrar o que já tinha em cache. Diferente do
+  fail-closed de `utils/cep.ts` (gate de segurança de cadastro), aqui é
+  conteúdo editorial — degradar servindo cache stale é sempre preferível
+  a quebrar a Home.
+- **Sem notificação para comentário em notícia**: ao contrário de
+  `POST_COMMENT` (Comunidades), `app_create_notification` autoriza cada
+  tipo via `EXISTS` contra uma linha-pai **pertencente ao destinatário**
+  — `NewsItem` não tem `userId` e estruturalmente não pode ter, então não
+  existe destinatário legítimo pra autorizar. Nenhum branch novo na
+  função, nenhum valor novo em `NotificationType`; `feed.service.ts
+  #createNewsComment` só insere o comentário. Vale como referência: nem
+  todo "comentário em algo" ganha notificação — só quando existe um dono
+  de verdade do lado de dentro do Hub.
 
 ## Padrões do frontend (apps/web)
 
@@ -606,6 +697,28 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   precisou do mesmo Ativo/Inativo — o helper já era genérico (só recebia
   `boolean`), só o nome era específico da loja; renomear e atualizar os
   usos existentes evita duplicar a mesma função por domínio.
+- **Feed principal (RF-36) — widget na Home, não rota própria**: a pedido
+  do usuário, o feed de notícias fica embutido em `HomePage.tsx`
+  (`<NewsFeedSection />`, `components/feed/NewsFeedSection.tsx`, arquivo
+  próprio — não inline na página como o composer de Comunidades, porque
+  esta seção soma estado de abas + lista + thread de comentário
+  expansível por card, um degrau de complexidade acima do composer
+  simples). Sem item novo em `NAV_ITEMS` — não é um destino de produto
+  separado. `NewsComment` é o nome do tipo em `types/feed.ts` — **nunca
+  `Comment`**, mesma armadilha do `PostComment`/`AppNotification`.
+- **Estado de expansão por card é `Record<newsItemId, boolean>`**, não
+  `useState` por card nem um `expandedId` único: a lista vem de query
+  (dinâmica, não um número fixo de irmãos JSX) e não há requisito de só
+  uma notícia expandida por vez — o usuário pode comparar comentários de
+  duas notícias ao mesmo tempo. Comentários de cada card só disparam
+  query (`useNewsComments(newsItemId, enabled)`) quando o card é
+  expandido — evita uma query por notícia visível na Home de uma vez só.
+- **Sem componente de aba/pill reutilizável no projeto** — o toggle
+  Novidades/E-sports (`CategoryToggleButton`, dentro do próprio
+  `NewsFeedSection.tsx`) é o primeiro, mínimo, usando os tokens já
+  existentes (`bg-ember` ativo vs. `ring-1 ring-silver/20` inativo); não
+  criar um componente genérico em `components/ui/` até haver um segundo
+  uso real.
 
 ## Banco de dados local (Docker Compose)
 
