@@ -542,6 +542,23 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   gesto raro e deliberado, não deveria competir com o budget de chat/post
   nem ser generoso demais (spam de denúncia é o próprio vetor de abuso
   que RF-40 tenta conter).
+- **Catálogo de jogos editável pelo admin** (`modules/games/`): até esta
+  fatia, `Game` só era populado pelo seed (3 jogos de exemplo) — o campo
+  Jogo do formulário de torneio precisava de migration/seed pra crescer.
+  RLS de `games` já cobria isso desde a Fatia 1 (policy genérica de
+  catálogo — SELECT público, INSERT/UPDATE/DELETE admin-only), então
+  **nenhuma migration nova foi necessária**, só código de aplicação.
+  Módulo novo extraído de onde estava espalhado (`GET /users/games`
+  vivia dentro do módulo `users`; `findGameById`/`listActiveGames`
+  moravam em `tournaments.repository.ts`, importados por
+  `users`/`tournaments` services) — mesmo padrão de `store`: `GET /games`
+  (qualquer autenticado, só ativos — substitui `GET /users/games`),
+  `GET /games/all` (admin, incl. inativos), `POST /games`/`PATCH
+  /games/:id` (admin). Slug é **gerado no servidor** a partir do nome
+  (`slugify` local em `games.service.ts`, sem lib nova) — não é campo do
+  formulário, evita duas fontes de verdade pro mesmo nome; duplicata de
+  nome/slug vira 409 via captura de `P2002` (mesmo padrão de
+  `reports.service.ts`).
 
 ## Padrões do frontend (apps/web)
 
@@ -812,6 +829,17 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   (só "Dispensar"), reflexo direto do escopo cortado da Fatia A no
   backend. Nav item `Admin Denúncias` segue o padrão exato dos outros 3
   itens admin (`icon: Shield`, prefixo "Admin ").
+- **Página `/admin/jogos`** (`AdminGamesPage.tsx`/`AdminGameFormPage.tsx`/
+  `GameForm.tsx`) clona o molde de `AdminStoreItemsPage`/
+  `AdminStoreItemFormPage` (listagem com ativar/desativar + página
+  separada de criar/editar) — form só com `name`/`isActive` (slug não é
+  campo, é gerado no backend). **Sem** `GET /games/:id` no backend: a
+  tela de edição reaproveita a query já cacheada de `useAdminGames()` e
+  faz `.find(id)`, mesmo truque de `AdminStoreItemFormPage` — evita
+  endpoint novo só pra isso. `useGames()` (consumido por `TournamentForm`/
+  `ProfileEditPage`/`AdminCommunityFormPage`) é invalidado pelas mutations
+  de `useAdminGameMutations.ts` — um jogo criado/desativado no admin
+  reflete nesses três formulários sem nenhuma mudança neles.
 
 ## Banco de dados local (Docker Compose)
 
