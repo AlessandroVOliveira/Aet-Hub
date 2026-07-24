@@ -116,3 +116,10 @@ export interface CreateDirectMessageData {
 export function createDirectMessage(tx: Prisma.TransactionClient, data: CreateDirectMessageData) {
   return tx.directMessage.create({ data });
 }
+
+// RLS de direct_messages (sender OU recipient = sessão) escopa isto
+// naturalmente: um reporter que não participa da conversa recebe null, sem
+// vazar que a mensagem existe.
+export function findMessageById(tx: Prisma.TransactionClient, id: string) {
+  return tx.directMessage.findUnique({ where: { id } });
+}

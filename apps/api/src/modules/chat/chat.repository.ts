@@ -21,3 +21,7 @@ export interface CreateChatMessageData {
 export function createMessage(tx: Prisma.TransactionClient, data: CreateChatMessageData) {
   return tx.chatMessage.create({ data });
 }
+
+export function findMessageById(tx: Prisma.TransactionClient, id: string) {
+  return tx.chatMessage.findUnique({ where: { id } });
+}

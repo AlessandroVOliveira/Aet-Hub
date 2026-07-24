@@ -617,3 +617,60 @@ model NewsComment {
   @@index([newsItemId, createdAt])
   @@map("news_comments")
 }
+
+// Tipo de conteúdo denunciável (RF-40). Cobre os 5 lugares com conteúdo de
+// usuário do Hub — Post/Comment (Comunidades), ChatMessage (chat geral),
+// DirectMessage (chat privado), NewsComment (feed de notícias).
+enum ReportedContentType {
+  POST
+  COMMENT
+  CHAT_MESSAGE
+  DIRECT_MESSAGE
+  NEWS_COMMENT
+}
+
+// Só duas resoluções nesta fatia (Fatia A) — dispensar é a resolução "sem
+// violação encontrada". Remover conteúdo/silenciar/banir é Fatia B (RF-25),
+// fora de escopo aqui; um valor novo de status entra só quando essa fatia
+// existir de fato.
+enum ReportStatus {
+  PENDING
+  DISMISSED
+}
+
+// Denúncia de conteúdo (RF-40, Fatia A). Só infraestrutura de fila — FORA de
+// escopo: remoção de conteúdo, mute, ban (Fatia B / RF-25, futura). contentId
+// é polimórfico (aponta pra Post, Comment, ChatMessage, DirectMessage ou
+// NewsComment conforme contentType) — sem FK possível, mesma razão de não
+// existir FK entre tabelas de tipos diferentes em nenhum outro lugar do
+// schema. reporterId/contentAuthorId/reviewedByUserId são deliberadamente
+// Strings SEM relation pra User: um admin revisando a fila não
+// necessariamente compartilha torneio com o reporter/autor (RLS de users só
+// libera self/ADMIN/colega-de-torneio, ver CLAUDE.md), então uma relação
+// obrigatória quebraria a query pra denúncias envolvendo qualquer player
+// comum ("Field user is required... got null instead"). reporterDisplayName
+// + contentAuthorDisplayName são snapshot no INSERT pelo mesmo motivo (mesmo
+// padrão de DirectMessage.senderDisplayName/recipientDisplayName) — cobre
+// também o caso do conteúdo original ser apagado depois (posts/comments/
+// news_comments são self-deletable) e o admin ainda precisar ver do que se
+// tratava. Sem UPDATE de reason/snapshot nunca: só status/reviewedAt/
+// reviewedByUserId mudam (dismiss).
+model Report {
+  id                       String              @id @default(cuid())
+  reporterId               String              @map("reporter_id")
+  reporterDisplayName      String              @map("reporter_display_name")
+  contentType              ReportedContentType @map("content_type")
+  contentId                String              @map("content_id")
+  reason                   String
+  contentSnapshot          String              @map("content_snapshot")
+  contentAuthorId          String              @map("content_author_id")
+  contentAuthorDisplayName String              @map("content_author_display_name")
+  status                   ReportStatus        @default(PENDING)
+  createdAt                DateTime            @default(now()) @map("created_at")
+  reviewedAt               DateTime?           @map("reviewed_at")
+  reviewedByUserId         String?             @map("reviewed_by_user_id")
+
+  @@unique([reporterId, contentType, contentId])
+  @@index([status, createdAt])
+  @@map("reports")
+}

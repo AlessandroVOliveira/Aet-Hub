@@ -15,6 +15,7 @@ import { chatRouter } from './modules/chat/chat.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 import { communitiesRouter } from './modules/communities/communities.routes.js';
 import { feedRouter } from './modules/feed/feed.routes.js';
+import { reportsRouter } from './modules/reports/reports.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/chat', chatRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/communities', communitiesRouter);
 app.use('/feed', feedRouter);
+app.use('/reports', reportsRouter);
 
 app.use(errorHandler);
 

@@ -101,3 +101,7 @@ export function deleteNewsCommentByIdForUser(
 ) {
   return tx.newsComment.deleteMany({ where: { id, userId } });
 }
+
+export function findNewsCommentById(tx: Prisma.TransactionClient, id: string) {
+  return tx.newsComment.findUnique({ where: { id } });
+}

@@ -60,6 +60,10 @@ export function deleteCommentByIdForUser(tx: Prisma.TransactionClient, id: strin
   return tx.comment.deleteMany({ where: { id, userId } });
 }
 
+export function findCommentById(tx: Prisma.TransactionClient, id: string) {
+  return tx.comment.findUnique({ where: { id } });
+}
+
 export function findLikedPostIds(tx: Prisma.TransactionClient, userId: string, postIds: string[]) {
   return tx.postLike.findMany({
     where: { userId, postId: { in: postIds } },
