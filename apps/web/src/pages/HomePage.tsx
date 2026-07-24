@@ -8,6 +8,7 @@ import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { Banner } from '@/components/ui/Banner';
+import { NewsFeedSection } from '@/components/feed/NewsFeedSection';
 import {
   formatDate,
   formatCurrencyFromCents,
@@ -31,7 +32,8 @@ export function HomePage() {
   const featured = openTournamentsQuery.data?.tournaments[0];
 
   const alreadyRegisteredInFeatured = myRegistrationsQuery.data?.registrations.some(
-    (registration) => registration.tournamentId === featured?.id && registration.status === 'CONFIRMED',
+    (registration) =>
+      registration.tournamentId === featured?.id && registration.status === 'CONFIRMED',
   );
 
   const pendingCheckins = (myRegistrationsQuery.data?.registrations ?? []).filter(
@@ -88,7 +90,9 @@ export function HomePage() {
 
                   <div className="md:w-1/2 p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-silver/10">
                     <div>
-                      <p className="font-mono text-ember text-xs mb-2 uppercase">[ Próximo torneio ]</p>
+                      <p className="font-mono text-ember text-xs mb-2 uppercase">
+                        [ Próximo torneio ]
+                      </p>
                       <h2 className="font-display text-4xl md:text-5xl tracking-tighter uppercase italic leading-[0.9] mb-4">
                         {featured.name}
                       </h2>
@@ -97,7 +101,8 @@ export function HomePage() {
                           <span className="text-silver">JOGO:</span> {featured.game.name}
                         </p>
                         <p>
-                          <span className="text-silver">EVENTO:</span> {formatDate(featured.eventStartAt)}
+                          <span className="text-silver">EVENTO:</span>{' '}
+                          {formatDate(featured.eventStartAt)}
                         </p>
                         <p>
                           <span className="text-silver">TAXA:</span>{' '}
@@ -184,7 +189,9 @@ export function HomePage() {
 
               {walletQuery.isError && (
                 <Banner variant="error">
-                  {walletQuery.error instanceof ApiError ? walletQuery.error.message : 'Erro inesperado'}
+                  {walletQuery.error instanceof ApiError
+                    ? walletQuery.error.message
+                    : 'Erro inesperado'}
                 </Banner>
               )}
 
@@ -194,7 +201,10 @@ export function HomePage() {
                     {walletQuery.data?.balance ?? 0}{' '}
                     <span className="text-ember text-sm font-mono not-italic">PTS</span>
                   </p>
-                  <Link to="/loja" className="text-ember hover:underline font-mono text-xs uppercase">
+                  <Link
+                    to="/loja"
+                    className="text-ember hover:underline font-mono text-xs uppercase"
+                  >
                     Ver loja de pontos
                   </Link>
                 </div>
@@ -215,6 +225,8 @@ export function HomePage() {
             </div>
           </aside>
         </div>
+
+        <NewsFeedSection />
       </div>
     </div>
   );
