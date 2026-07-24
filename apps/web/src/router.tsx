@@ -30,6 +30,8 @@ import { AdminRedemptionsPage } from '@/pages/AdminRedemptionsPage';
 import { AdminCommunitiesPage } from '@/pages/AdminCommunitiesPage';
 import { AdminCommunityFormPage } from '@/pages/AdminCommunityFormPage';
 import { AdminReportsPage } from '@/pages/AdminReportsPage';
+import { AdminGamesPage } from '@/pages/AdminGamesPage';
+import { AdminGameFormPage } from '@/pages/AdminGameFormPage';
 
 export const router = createBrowserRouter([
   {
@@ -73,6 +75,9 @@ export const router = createBrowserRouter([
               { path: '/admin/comunidades/novo', element: <AdminCommunityFormPage /> },
               { path: '/admin/comunidades/:id/editar', element: <AdminCommunityFormPage /> },
               { path: '/admin/denuncias', element: <AdminReportsPage /> },
+              { path: '/admin/jogos', element: <AdminGamesPage /> },
+              { path: '/admin/jogos/novo', element: <AdminGameFormPage /> },
+              { path: '/admin/jogos/:id/editar', element: <AdminGameFormPage /> },
             ],
           },
         ],

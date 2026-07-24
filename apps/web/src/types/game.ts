@@ -11,3 +11,15 @@ export interface Game {
 export interface GetGamesResponse {
   games: Game[];
 }
+
+export interface GetGameResponse {
+  game: Game;
+}
+
+export interface GameFormFields {
+  name: string;
+  isActive: boolean;
+}
+
+export type CreateGamePayload = GameFormFields;
+export type UpdateGamePayload = Partial<GameFormFields>;
