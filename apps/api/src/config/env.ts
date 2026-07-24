@@ -9,6 +9,9 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().min(1).default('1d'),
   VITE_API_URL: z.string().url().optional(),
   UPLOAD_DIR: z.string().min(1).default('uploads'),
+  FREENEWSAPI_API_KEY: z
+    .string()
+    .min(10, 'FREENEWSAPI_API_KEY é obrigatório (cadastre-se em freenewsapi.io)'),
 });
 
 const parsed = envSchema.safeParse(process.env);

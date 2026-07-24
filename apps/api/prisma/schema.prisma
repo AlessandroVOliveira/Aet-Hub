@@ -121,6 +121,7 @@ model User {
   posts                    Post[]
   comments                 Comment[]
   postLikes                PostLike[]
+  newsComments             NewsComment[]
 
   @@map("users")
 }
@@ -560,4 +561,59 @@ model PostLike {
 
   @@unique([postId, userId])
   @@map("post_likes")
+}
+
+// Categoria fixa do feed de notícias (RF-36). Rótulo em pt-BR ("Novidades"/
+// "E-sports") é só apresentação (mapeado no frontend), não o valor
+// persistido — mesmo padrão dos demais enums do schema (em inglês).
+enum NewsCategory {
+  GENERAL
+  ESPORTS
+}
+
+// Cache local de artigos da APITube (RF-36). Populado pelo próprio backend
+// via refresh-se-obsoleto disparado pela leitura (feed.service.ts), nunca
+// por um usuário — sem userId porque o conteúdo não pertence a ninguém do
+// Hub. Insert-only: conteúdo de notícia publicada não muda, então o
+// refresh só insere o que ainda não existe (dedup por [category,
+// externalId] via createMany skipDuplicates) — nunca há UPDATE.
+model NewsItem {
+  id           String       @id @default(cuid())
+  category     NewsCategory
+  externalId   String       @map("external_id")
+  title        String
+  description  String?
+  url          String
+  imageUrl     String?      @map("image_url")
+  sourceDomain String?      @map("source_domain")
+  publishedAt  DateTime     @map("published_at")
+  fetchedAt    DateTime     @default(now()) @map("fetched_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  comments NewsComment[]
+
+  @@unique([category, externalId])
+  @@index([category, publishedAt])
+  @@index([category, fetchedAt])
+  @@map("news_items")
+}
+
+// Comentário de player numa notícia externa (RF-36). Nome NewsComment de
+// propósito — nunca `Comment` bare, que já é usado por Community acima e
+// colide silenciosamente com o tipo DOM global no frontend (mesma
+// armadilha do AppNotification/PostComment, ver CLAUDE.md). Mesmo
+// snapshot de autor de Comment/ChatMessage — nunca include via `user`.
+model NewsComment {
+  id                String   @id @default(cuid())
+  newsItemId        String   @map("news_item_id")
+  userId            String   @map("user_id")
+  authorDisplayName String   @map("author_display_name")
+  content           String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  newsItem NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([newsItemId, createdAt])
+  @@map("news_comments")
 }
