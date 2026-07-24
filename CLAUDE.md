@@ -486,6 +486,62 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   #createNewsComment` só insere o comentário. Vale como referência: nem
   todo "comentário em algo" ganha notificação — só quando existe um dono
   de verdade do lado de dentro do Hub.
+- **Denúncia de conteúdo (RF-40, Fatia A) — só infraestrutura de fila,
+  sem ação de moderação**: escopo deliberadamente cortado do PRD original
+  (RF-25 "remover conteúdo, silenciar/banir usuário" fica pra uma Fatia B
+  futura, decidido com o usuário via `AskUserQuestion` por ser grande
+  demais pra uma fatia só) — `modules/reports/` cobre só `POST /reports`
+  (player) + `GET /reports`/`PATCH /reports/:id/dismiss` (admin), nunca
+  toca no conteúdo denunciado nem no usuário autor. Cobre os 5 tipos de
+  conteúdo de uma vez (`ReportedContentType`: `POST`/`COMMENT`/
+  `CHAT_MESSAGE`/`DIRECT_MESSAGE`/`NEWS_COMMENT`) porque o custo por tipo
+  é só mais um `case` no lookup, não uma RLS nova.
+- **Primeira policy de SELECT self-OR-admin nascendo de um requisito do
+  Prisma, não de produto**: `reports_self_or_admin_select` (`reporter_id
+  = sessão OR role = 'ADMIN'`) existe porque todo `INSERT` do Prisma
+  emite `RETURNING` (regra já documentada aqui) — sem o `OR reporter_id =
+  sessão`, o próprio `POST /reports` do player quebraria lendo de volta a
+  linha que acabou de criar. Mesmo padrão de
+  `points_transactions_self_or_admin_select`, adicionado aqui por um
+  motivo puramente técnico, não porque exista uma tela "minhas
+  denúncias".
+- **`Report` sem NENHUMA relation Prisma pra `User`** (nem
+  `reporterId`/`contentAuthorId`/`reviewedByUserId`) — mesma lição já
+  documentada pra `NewsComment`/`ChatMessage`: RLS de `users` só libera
+  self/ADMIN/colega-de-torneio, e um admin revisando a fila raramente
+  compartilha torneio com o denunciante/autor. Compensado com DOIS
+  snapshots de nome (`reporterDisplayName` + `contentAuthorDisplayName`),
+  mesmo padrão dos dois snapshots de `DirectMessage`.
+- **`contentId` polimórfico validado por lookup direto, não por função
+  `SECURITY DEFINER`**: `reports.service.ts#lookupReportedContent`
+  despacha por `switch(contentType)` pros repositories de 4 módulos
+  diferentes (`communities`, `chat` x2, `feed`), rodando sob a própria
+  sessão RLS do denunciante (dentro do mesmo `withRls` que depois insere
+  o `Report`) — diferente de `app_create_notification` e
+  `app_dm_recipient_display_name`, que existem especificamente pra
+  atravessar uma fronteira de privilégio CROSS-USER. Aqui não há
+  fronteira nenhuma pra atravessar: é um INSERT auto-referente (o
+  denunciante denuncia como ele mesmo), então a RLS de leitura do próprio
+  denunciante já é suficiente — e vira bônus de segurança de graça:
+  denunciar uma `DirectMessage` da qual o denunciante não participa
+  devolve 404 sozinho (RLS de `direct_messages` já esconde a linha), sem
+  nenhuma checagem extra no código. Content author/snapshot vêm desse
+  mesmo lookup, então o "conteúdo pra revisar" sobrevive mesmo que o
+  original seja apagado depois (posts/comentários/comentário de notícia
+  são self-deletable) — mesma razão dos outros snapshots do projeto.
+- **`@@unique([reporterId, contentType, contentId])` + captura de P2002
+  no service** evita denúncia duplicada da mesma pessoa pro mesmo
+  conteúdo (409 limpo, "Você já denunciou este conteúdo") — mesmo idioma
+  já usado em `postsService.likePost` pro curtir duplicado. Autor não
+  pode denunciar o próprio conteúdo (`authorId === actor.id` → 400),
+  checado no service, não na RLS (RLS não sabe comparar duas colunas de
+  tabelas diferentes aqui).
+- **Rate limiter próprio** (`createReportLimiter`, 10/min por usuário via
+  `keyGenerator: req.user!.id`) — instância nova, não reaproveita
+  `sendMessageLimiter`/`writeContentLimiter`: orçamento de denúncia é um
+  gesto raro e deliberado, não deveria competir com o budget de chat/post
+  nem ser generoso demais (spam de denúncia é o próprio vetor de abuso
+  que RF-40 tenta conter).
 
 ## Padrões do frontend (apps/web)
 
@@ -719,6 +775,43 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   existentes (`bg-ember` ativo vs. `ring-1 ring-silver/20` inativo); não
   criar um componente genérico em `components/ui/` até haver um segundo
   uso real.
+- **Denúncia de conteúdo (RF-40, Fatia A) — `ReportForm` único
+  reaproveitado nas 4 superfícies de conteúdo**
+  (`components/reports/ReportForm.tsx`, props `contentType`/`contentId`):
+  colapsado é só um botão "Denunciar" inline no action row existente
+  (`isOwner ? <botão Excluir> : <ReportForm />`, mesma posição que
+  Excluir ocupava — nunca os dois juntos, dono não denuncia o próprio
+  conteúdo); expandido é um textarea inline com contador/Cancelar/Enviar;
+  sucesso substitui o próprio componente por um rótulo estático "Denúncia
+  enviada" — **sem modal nenhum**, porque nenhum existe no projeto hoje
+  (todo fluxo "além de confirm simples" até agora era navegação de página
+  cheia; este é o primeiro caso de expand-inline reutilizável entre
+  telas, mesmo princípio do expand-by-id de `NewsFeedSection`, só que
+  como componente próprio em vez de estado local por página). Prop
+  `triggerClassName` (opcional) deixa o CHAMADOR alinhar só o botão
+  colapsado (ex. `ml-auto`) sem acoplar isso ao componente — o painel
+  expandido sempre carrega `basis-full` (quebra pra linha própria dentro
+  de um container `flex flex-wrap`, sem espremer os botões vizinhos)
+  independente de como o gatilho foi alinhado.
+- **`MessageBubble` ganha a primeira ação por mensagem do projeto** — até
+  esta fatia era puro apresentacional (`mine`/`senderName`/`content`/
+  `createdAt`, sem nenhum botão). Ganhou `id` + `reportContentType:
+  'CHAT_MESSAGE' | 'DIRECT_MESSAGE'` (o mesmo componente serve chat geral
+  e DM, só o tipo denunciado muda — reaproveitado tal qual já era);
+  `ReportForm` renderiza só quando `!mine`. Gotcha real batido aqui: o
+  wrapper do timestamp era um `<p>`, e `ReportForm` pode devolver um
+  `<div>` (painel expandido) — `<div>` dentro de `<p>` é HTML inválido
+  (o browser fecha o `<p>` cedo demais, quebrando o layout
+  silenciosamente); trocado pra `<div>` antes de adicionar a ação. Vale
+  como lembrete geral: qualquer wrapper `<p>` que vá hospedar um
+  componente cujo estado pode virar bloco precisa ser `<div>` primeiro.
+- **Página `/admin/denuncias`** (`AdminReportsPage.tsx`) segue o mesmo
+  molde de `AdminRedemptionsPage.tsx` (abas de filtro por status, tabela,
+  `window.confirm` na ação, `useDismissReport` invalidando
+  `['admin-reports']`) — sem ação de conteúdo/usuário na tabela ainda
+  (só "Dispensar"), reflexo direto do escopo cortado da Fatia A no
+  backend. Nav item `Admin Denúncias` segue o padrão exato dos outros 3
+  itens admin (`icon: Shield`, prefixo "Admin ").
 
 ## Banco de dados local (Docker Compose)
 
