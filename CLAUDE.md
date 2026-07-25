@@ -568,6 +568,85 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   formulário, evita duas fontes de verdade pro mesmo nome; duplicata de
   nome/slug vira 409 via captura de `P2002` (mesmo padrão de
   `reports.service.ts`).
+- **Moderação de conteúdo (RF-25, Fatia B)** — fecha o que a Fatia A (RF-40)
+  deixou de propósito fora de escopo: remover conteúdo denunciado, silenciar
+  ou banir o autor, com motivo registrado. `User.isActive` (já existia,
+  nunca lido em lugar nenhum) foi reaproveitado como "não banido" — mesmo
+  padrão de `Game`/`StoreItem`/`Community.isActive`; `User.isMuted` é campo
+  novo. Motivo vai pra `AuditLog.metadata` (`{reason, reportId?}`), não uma
+  coluna `banReason` nova — é o primeiro código de aplicação a escrever
+  nessa tabela (RF-06 só existia como schema até aqui; RLS dela já estava
+  pronta desde a migration `rls_policies` da Fatia 1, sem nenhuma migration
+  nova necessária). `ReportStatus` ganhou `RESOLVED` (terceiro valor, cobre
+  as duas categorias de ação — qual ação foi tomada fica só no `AuditLog`
+  via `metadata.reportId`, não multiplica valor de enum por ação).
+- **`requireAuth` deixou de ser stateless** (`middlewares/auth.middleware.ts`):
+  pra ban ter enforcement imediato (JWT ainda válido de um usuário banido
+  precisa parar de funcionar sem esperar expirar), o middleware agora roda
+  um `withRls` self-context a cada request autenticada (`tx.user.findUnique`
+  checando `isActive`/`isMuted`) — **nunca** `prisma` direto aqui: sem
+  `app.current_user_id` setado, a RLS de `users` devolveria vazio e todo
+  mundo pareceria banido. Precisou virar assíncrono; como
+  `utils/async-handler.ts#asyncHandler` já tem a assinatura exata
+  `(req,res,next) => Promise<void>`, a solução foi literalmente
+  `export const requireAuth = asyncHandler(async (req,res,next) => {...})`
+  em vez de escrever tratamento de erro próprio. Trade-off aceito
+  conscientemente: 1 transação extra por request autenticada (sem cache/
+  otimização — não pedido). Tipo de `req.user` ganhou uma interface nova
+  (`RequestUser`, em `modules/auth/jwt.ts`, superset de
+  `AccessTokenPayload` com `isMuted`) — **não** `AuthenticatedUser`, nome já
+  usado por `auth.service.ts` pro formato de resposta do login (conceito
+  diferente, colidiria). Mute é um middleware **separado**
+  (`requireNotMuted`, `middlewares/require-not-muted.middleware.ts`) — bloqueia
+  só *criação* de conteúdo (aplicado nas 5 rotas `POST` de mensagem/post/
+  comentário de chat geral, DM, comunidades e feed de notícias), não a
+  sessão inteira; não precisa de query nova porque `req.user.isMuted` já
+  veio populado por `requireAuth`. Login (`auth.service.ts#login`) bloqueia
+  usuário banido **depois** de `verifyPassword` confirmar, nunca antes —
+  não revela que a conta está banida pra quem não sabe a senha.
+- **Gotcha de RLS real, não teórico, achado testando esta fatia fim a
+  fim**: `DELETE FROM direct_messages WHERE id=...` como ADMIN (policy
+  `direct_messages_admin_delete`, `USING role='ADMIN'`, e `GRANT DELETE`
+  ambos corretos) afetava **0 linhas**, enquanto o mesmo padrão em
+  `posts`/`comments`/`news_comments`/`chat_messages` funcionou de primeira.
+  Causa raiz: pra `UPDATE`/`DELETE`, o Postgres exige que a linha também
+  seja visível pela **policy de SELECT** da tabela (é o SELECT que
+  alimenta o scan que localiza as linhas candidatas) — não basta só a
+  policy do próprio comando. `chat_messages_admin_delete` "funcionava por
+  acidente" porque `chat_messages_authenticated_select` já é "qualquer
+  sessão autenticada" (sempre verdadeiro pra sessão do admin);
+  `direct_messages_participant_select` exige `sender_id`/`recipient_id` =
+  sessão, e o admin normalmente não é participante da conversa que está
+  moderando. Fix: policy de SELECT aditiva pra admin em `direct_messages`
+  (migration própria, `direct_messages_admin_select_policy`, criada depois
+  de reproduzir o bug num `psql` isolado — comparação direta com
+  `chat_messages`, que tem a mesma forma de policy de DELETE mas SELECT
+  "qualquer autenticado", foi o que expôs a causa raiz). Vale como alerta
+  geral: **qualquer** tabela onde a policy de DELETE/UPDATE admin é mais
+  permissiva que a de SELECT correspondente tem esse mesmo risco — cobrir
+  com teste fim a fim real (nunca só lint/tsc), mesmo padrão de outros
+  gotchas de RLS já documentados aqui.
+- **Bug de leak de dado sensível pego no teste, não no code review**:
+  `PATCH /users/:id/moderation` devolvia a linha inteira de `User`
+  (`tx.user.update({ where, data })` sem `select`), **incluindo
+  `passwordHash`**, direto no corpo da resposta JSON — só percebido lendo a
+  resposta crua de um `curl` de teste. Fix: `select` explícito em
+  `users.repository.ts#updateUserModeration`, mesmo shape público de
+  `listAllUsersForAdmin` (nunca devolver a linha de `User` sem `select` em
+  nenhum endpoint, mesmo quando o Prisma Client não reclama de tipo — o
+  TypeScript não pega esse tipo de vazamento entre o shape real devolvido
+  pelo Prisma e o tipo esperado do lado do frontend).
+- **`modules/users/`** ganhou as primeiras rotas admin (`GET /users`,
+  `PATCH /users/:id/moderation`) — até esta fatia só tinha `/me` self-
+  service. Não é RF-16 completo (sem editar perfil/excluir conta por
+  admin), só o necessário pra reverter ban/mute a partir de
+  `/admin/usuarios`. `reports.service.ts` chama `usersRepository`
+  diretamente (`updateUserModeration`, estendendo o import named já
+  existente de `findProfileByUserId` — não introduz um segundo estilo de
+  import `* as usersRepository` neste arquivo) dentro do **mesmo**
+  `withRls` que resolve a denúncia, nunca `usersService` (que abriria uma
+  segunda transação desconectada, quebrando a atomicidade "moderar autor +
+  marcar denúncia resolvida").
 
 ## Padrões do frontend (apps/web)
 
@@ -849,6 +928,18 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `ProfileEditPage`/`AdminCommunityFormPage`) é invalidado pelas mutations
   de `useAdminGameMutations.ts` — um jogo criado/desativado no admin
   reflete nesses três formulários sem nenhuma mudança neles.
+- **Moderação de conteúdo (RF-25, Fatia B) — frontend**: `AdminReportsPage.tsx`
+  ganhou 3 botões novos na célula de Ações (Remover conteúdo/Silenciar
+  autor/Banir autor, ao lado de Dispensar) e `/admin/usuarios`
+  (`AdminUsersPage.tsx`, novo, clona o molde de `AdminGamesPage.tsx`) —
+  listagem + toggle de ban/mute, sem tela de criação/edição de usuário
+  (RF-16 completo fica pra depois). Motivo é capturado via `window.prompt`,
+  não expansão inline: é a extensão mínima da mesma família de diálogo
+  nativo que `window.confirm` já usa em toda ação de moderação do projeto
+  (sem modal em lugar nenhum do código) — o painel expandido de
+  `ReportForm.tsx` não cabe numa célula de tabela densa sem redesenhar a
+  tabela inteira. `ReportStatus` do frontend ganhou `RESOLVED` (label
+  "Resolvida", tone `accent`) espelhando o enum novo do backend.
 
 ## Banco de dados local (Docker Compose)
 
