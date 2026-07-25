@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { requireAuth } from '../../middlewares/auth.middleware.js';
+import { requireNotMuted } from '../../middlewares/require-not-muted.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
 import { sendChatMessageSchema } from './chat.schemas.js';
@@ -32,6 +33,7 @@ const sendMessageLimiter = rateLimit({
 chatRouter.get('/messages', asyncHandler(listChatMessagesHandler));
 chatRouter.post(
   '/messages',
+  requireNotMuted,
   sendMessageLimiter,
   validateBody(sendChatMessageSchema),
   asyncHandler(sendChatMessageHandler),
@@ -44,6 +46,7 @@ chatRouter.get('/conversations', asyncHandler(listConversationsHandler));
 chatRouter.get('/conversations/:userId/messages', asyncHandler(listDirectMessagesHandler));
 chatRouter.post(
   '/conversations/:userId/messages',
+  requireNotMuted,
   sendMessageLimiter,
   validateBody(sendDirectMessageSchema),
   asyncHandler(sendDirectMessageHandler),

@@ -100,6 +100,7 @@ model User {
   role            Role      @default(PLAYER)
   termsAcceptedAt DateTime  @map("terms_accepted_at")
   isActive        Boolean   @default(true) @map("is_active")
+  isMuted         Boolean   @default(false) @map("is_muted")
   deletedAt       DateTime? @map("deleted_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
@@ -629,32 +630,34 @@ enum ReportedContentType {
   NEWS_COMMENT
 }
 
-// Só duas resoluções nesta fatia (Fatia A) — dispensar é a resolução "sem
-// violação encontrada". Remover conteúdo/silenciar/banir é Fatia B (RF-25),
-// fora de escopo aqui; um valor novo de status entra só quando essa fatia
-// existir de fato.
+// PENDING → DISMISSED (sem violação encontrada) ou RESOLVED (Fatia B/RF-25:
+// admin removeu o conteúdo ou moderou o autor — qual ação foi tomada fica no
+// AuditLog associado via metadata.reportId, não como um status novo por
+// ação, pra não multiplicar valores de enum).
 enum ReportStatus {
   PENDING
   DISMISSED
+  RESOLVED
 }
 
-// Denúncia de conteúdo (RF-40, Fatia A). Só infraestrutura de fila — FORA de
-// escopo: remoção de conteúdo, mute, ban (Fatia B / RF-25, futura). contentId
-// é polimórfico (aponta pra Post, Comment, ChatMessage, DirectMessage ou
-// NewsComment conforme contentType) — sem FK possível, mesma razão de não
-// existir FK entre tabelas de tipos diferentes em nenhum outro lugar do
-// schema. reporterId/contentAuthorId/reviewedByUserId são deliberadamente
-// Strings SEM relation pra User: um admin revisando a fila não
-// necessariamente compartilha torneio com o reporter/autor (RLS de users só
-// libera self/ADMIN/colega-de-torneio, ver CLAUDE.md), então uma relação
-// obrigatória quebraria a query pra denúncias envolvendo qualquer player
-// comum ("Field user is required... got null instead"). reporterDisplayName
-// + contentAuthorDisplayName são snapshot no INSERT pelo mesmo motivo (mesmo
-// padrão de DirectMessage.senderDisplayName/recipientDisplayName) — cobre
-// também o caso do conteúdo original ser apagado depois (posts/comments/
-// news_comments são self-deletable) e o admin ainda precisar ver do que se
-// tratava. Sem UPDATE de reason/snapshot nunca: só status/reviewedAt/
-// reviewedByUserId mudam (dismiss).
+// Denúncia de conteúdo (RF-40, Fatia A + RF-25, Fatia B: remover conteúdo,
+// silenciar/banir autor, ambos via reports.service.ts, ver AuditLog pro
+// motivo registrado). contentId é polimórfico (aponta pra Post, Comment,
+// ChatMessage, DirectMessage ou NewsComment conforme contentType) — sem FK
+// possível, mesma razão de não existir FK entre tabelas de tipos diferentes
+// em nenhum outro lugar do schema. reporterId/contentAuthorId/
+// reviewedByUserId são deliberadamente Strings SEM relation pra User: um
+// admin revisando a fila não necessariamente compartilha torneio com o
+// reporter/autor (RLS de users só libera self/ADMIN/colega-de-torneio, ver
+// CLAUDE.md), então uma relação obrigatória quebraria a query pra denúncias
+// envolvendo qualquer player comum ("Field user is required... got null
+// instead"). reporterDisplayName + contentAuthorDisplayName são snapshot no
+// INSERT pelo mesmo motivo (mesmo padrão de
+// DirectMessage.senderDisplayName/recipientDisplayName) — cobre também o
+// caso do conteúdo original ser apagado depois (posts/comments/news_comments
+// são self-deletable) e o admin ainda precisar ver do que se tratava. Sem
+// UPDATE de reason/snapshot nunca: só status/reviewedAt/reviewedByUserId
+// mudam (dismiss ou resolve).
 model Report {
   id                       String              @id @default(cuid())
   reporterId               String              @map("reporter_id")

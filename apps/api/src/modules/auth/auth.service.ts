@@ -80,6 +80,12 @@ export async function login(
     throw new AppError('Usuário ou senha inválidos', 401);
   }
 
+  // Checado depois da senha, nunca antes — não revela que a conta está
+  // banida pra quem não sabe a senha (RF-25, Fatia B).
+  if (!user.isActive) {
+    throw new AppError('Sua conta foi suspensa. Entre em contato com a organização.', 403);
+  }
+
   const token = signAccessToken({ id: user.id, role: user.role });
 
   return { token, user: { id: user.id, username: user.username, role: user.role } };

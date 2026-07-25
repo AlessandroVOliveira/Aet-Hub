@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { ReportStatus } from '@prisma/client';
 import * as reportsService from './reports.service.js';
-import type { CreateReportInput } from './reports.schemas.js';
+import type { CreateReportInput, ModerationReasonInput } from './reports.schemas.js';
 
 export async function createReportHandler(req: Request, res: Response): Promise<void> {
   const report = await reportsService.createReport(req.user!, req.body as CreateReportInput);
@@ -22,5 +22,23 @@ export async function listReportsHandler(req: Request, res: Response): Promise<v
 
 export async function dismissReportHandler(req: Request, res: Response): Promise<void> {
   const report = await reportsService.dismissReport(req.user!, req.params.id as string);
+  res.status(200).json({ report });
+}
+
+export async function removeContentHandler(req: Request, res: Response): Promise<void> {
+  const { reason } = req.body as ModerationReasonInput;
+  const report = await reportsService.removeContent(req.user!, req.params.id as string, reason);
+  res.status(200).json({ report });
+}
+
+export async function banAuthorHandler(req: Request, res: Response): Promise<void> {
+  const { reason } = req.body as ModerationReasonInput;
+  const report = await reportsService.banAuthor(req.user!, req.params.id as string, reason);
+  res.status(200).json({ report });
+}
+
+export async function muteAuthorHandler(req: Request, res: Response): Promise<void> {
+  const { reason } = req.body as ModerationReasonInput;
+  const report = await reportsService.muteAuthor(req.user!, req.params.id as string, reason);
   res.status(200).json({ report });
 }

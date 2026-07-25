@@ -25,3 +25,9 @@ export function createMessage(tx: Prisma.TransactionClient, data: CreateChatMess
 export function findMessageById(tx: Prisma.TransactionClient, id: string) {
   return tx.chatMessage.findUnique({ where: { id } });
 }
+
+// Único delete deste model — sem self-delete (mensagem de chat é imutável
+// pro autor); só admin remove, a partir da fila de denúncias (RF-25).
+export function deleteMessageByIdAsAdmin(tx: Prisma.TransactionClient, id: string) {
+  return tx.chatMessage.deleteMany({ where: { id } });
+}

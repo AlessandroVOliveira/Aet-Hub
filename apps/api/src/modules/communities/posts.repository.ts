@@ -39,6 +39,12 @@ export function deletePostByIdForUser(tx: Prisma.TransactionClient, id: string, 
   return tx.post.deleteMany({ where: { id, userId } });
 }
 
+// Sem filtro de userId: quem chama é admin removendo conteúdo denunciado
+// (RF-25), não o autor (deletePostByIdForUser acima cobre esse caso).
+export function deletePostByIdAsAdmin(tx: Prisma.TransactionClient, id: string) {
+  return tx.post.deleteMany({ where: { id } });
+}
+
 // Desc + teto defensivo take:100 (sem paginação real, mesmo padrão do
 // chat) — o service reverte pra ordem cronológica antes de expor.
 export function listCommentsByPost(tx: Prisma.TransactionClient, postId: string) {
@@ -58,6 +64,11 @@ export function createComment(tx: Prisma.TransactionClient, data: CreateCommentD
 
 export function deleteCommentByIdForUser(tx: Prisma.TransactionClient, id: string, userId: string) {
   return tx.comment.deleteMany({ where: { id, userId } });
+}
+
+// Mesma razão de deletePostByIdAsAdmin acima.
+export function deleteCommentByIdAsAdmin(tx: Prisma.TransactionClient, id: string) {
+  return tx.comment.deleteMany({ where: { id } });
 }
 
 export function findCommentById(tx: Prisma.TransactionClient, id: string) {

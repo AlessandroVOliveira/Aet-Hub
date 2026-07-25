@@ -1,8 +1,9 @@
 import { Prisma, type ReportedContentType, type ReportStatus } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { AppError } from '../../utils/app-error.js';
+import { recordAuditLog } from '../../utils/audit-log.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
-import { findProfileByUserId } from '../users/users.repository.js';
+import { findProfileByUserId, updateUserModeration } from '../users/users.repository.js';
 import * as postsRepository from '../communities/posts.repository.js';
 import * as chatRepository from '../chat/chat.repository.js';
 import * as directMessagesRepository from '../chat/direct-messages.repository.js';
@@ -132,4 +133,101 @@ export async function dismissReport(actor: AccessTokenPayload, reportId: string)
       reviewedByUserId: actor.id,
     });
   });
+}
+
+// Despacha a remoção pro repository do módulo dono, espelhando
+// lookupReportedContent acima — mas escrevendo, não lendo. Sem SELECT antes
+// do DELETE: deleteMany (sem RETURNING) depende só da policy de DELETE
+// admin-only de cada tabela.
+async function removeReportedContent(
+  tx: Prisma.TransactionClient,
+  contentType: ReportedContentType,
+  contentId: string,
+): Promise<void> {
+  switch (contentType) {
+    case 'POST':
+      await postsRepository.deletePostByIdAsAdmin(tx, contentId);
+      return;
+    case 'COMMENT':
+      await postsRepository.deleteCommentByIdAsAdmin(tx, contentId);
+      return;
+    case 'CHAT_MESSAGE':
+      await chatRepository.deleteMessageByIdAsAdmin(tx, contentId);
+      return;
+    case 'DIRECT_MESSAGE':
+      await directMessagesRepository.deleteMessageByIdAsAdmin(tx, contentId);
+      return;
+    case 'NEWS_COMMENT':
+      await feedRepository.deleteNewsCommentByIdAsAdmin(tx, contentId);
+      return;
+  }
+}
+
+async function loadPendingReport(tx: Prisma.TransactionClient, reportId: string) {
+  const report = await reportsRepository.findReportById(tx, reportId);
+  if (!report) {
+    throw new AppError('Denúncia não encontrada', 404);
+  }
+  if (report.status !== 'PENDING') {
+    throw new AppError('Esta denúncia já foi revisada', 409);
+  }
+  return report;
+}
+
+export async function removeContent(actor: AccessTokenPayload, reportId: string, reason: string) {
+  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const report = await loadPendingReport(tx, reportId);
+    await removeReportedContent(tx, report.contentType, report.contentId);
+    await recordAuditLog(tx, {
+      actorUserId: actor.id,
+      action: 'CONTENT_REMOVED',
+      entityType: report.contentType,
+      entityId: report.contentId,
+      metadata: { reason, reportId: report.id },
+    });
+    return reportsRepository.updateReportStatus(tx, reportId, {
+      status: 'RESOLVED',
+      reviewedAt: new Date(),
+      reviewedByUserId: actor.id,
+    });
+  });
+}
+
+async function moderateReportedAuthor(
+  actor: AccessTokenPayload,
+  reportId: string,
+  reason: string,
+  field: 'isActive' | 'isMuted',
+  value: boolean,
+  action: string,
+) {
+  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const report = await loadPendingReport(tx, reportId);
+    if (report.contentAuthorId === actor.id) {
+      throw new AppError('Você não pode moderar a si mesmo', 400);
+    }
+
+    await updateUserModeration(tx, report.contentAuthorId, { [field]: value });
+    await recordAuditLog(tx, {
+      actorUserId: actor.id,
+      action,
+      entityType: 'USER',
+      entityId: report.contentAuthorId,
+      metadata: { reason, reportId: report.id },
+    });
+
+    return reportsRepository.updateReportStatus(tx, reportId, {
+      status: 'RESOLVED',
+      reviewedAt: new Date(),
+      reviewedByUserId: actor.id,
+    });
+  });
+}
+
+export function banAuthor(actor: AccessTokenPayload, reportId: string, reason: string) {
+  return moderateReportedAuthor(actor, reportId, reason, 'isActive', false, 'USER_BANNED');
+}
+
+export function muteAuthor(actor: AccessTokenPayload, reportId: string, reason: string) {
+  return moderateReportedAuthor(actor, reportId, reason, 'isMuted', true, 'USER_MUTED');
 }

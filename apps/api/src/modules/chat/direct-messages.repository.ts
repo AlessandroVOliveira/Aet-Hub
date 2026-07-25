@@ -123,3 +123,10 @@ export function createDirectMessage(tx: Prisma.TransactionClient, data: CreateDi
 export function findMessageById(tx: Prisma.TransactionClient, id: string) {
   return tx.directMessage.findUnique({ where: { id } });
 }
+
+// Admin removendo conteúdo denunciado (RF-25). deleteMany (sem RETURNING)
+// depende só da policy de DELETE (role=ADMIN), não da de SELECT — admin não
+// precisa ser participante da conversa pra remover.
+export function deleteMessageByIdAsAdmin(tx: Prisma.TransactionClient, id: string) {
+  return tx.directMessage.deleteMany({ where: { id } });
+}

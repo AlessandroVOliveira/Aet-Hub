@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import * as usersService from './users.service.js';
-import type { UpdateProfileInput } from './users.schemas.js';
+import type { ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
 
 export async function getMyProfileHandler(req: Request, res: Response): Promise<void> {
   const profile = await usersService.getMyProfile(req.user!);
@@ -20,4 +20,18 @@ export async function getMyHistoryHandler(req: Request, res: Response): Promise<
 export async function getMyWalletHandler(req: Request, res: Response): Promise<void> {
   const wallet = await usersService.getMyWallet(req.user!);
   res.status(200).json(wallet);
+}
+
+export async function listAllUsersHandler(req: Request, res: Response): Promise<void> {
+  const users = await usersService.listAllUsers(req.user!);
+  res.status(200).json({ users });
+}
+
+export async function moderateUserHandler(req: Request, res: Response): Promise<void> {
+  const user = await usersService.moderateUser(
+    req.user!,
+    req.params.id as string,
+    req.body as ModerateUserInput,
+  );
+  res.status(200).json({ user });
 }

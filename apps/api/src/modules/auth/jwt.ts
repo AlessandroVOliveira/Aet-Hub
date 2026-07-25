@@ -7,6 +7,16 @@ export interface AccessTokenPayload {
   role: Role;
 }
 
+// Superset de AccessTokenPayload usado só para tipar req.user (nunca o
+// payload assinado no JWT) — isMuted vem de uma consulta ao banco a cada
+// request (ver requireAuth), não do token, porque token válido não pode
+// ficar stale até expirar. Nome RequestUser, não AuthenticatedUser: esse
+// nome já é usado em auth.service.ts para o formato de resposta do login
+// ({id, username, role}), um conceito diferente.
+export interface RequestUser extends AccessTokenPayload {
+  isMuted: boolean;
+}
+
 export function signAccessToken(payload: AccessTokenPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
     // @types/jsonwebtoken tipa expiresIn como um template literal restrito

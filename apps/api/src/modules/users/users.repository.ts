@@ -49,3 +49,55 @@ export function listPointsTransactions(tx: Prisma.TransactionClient, userId: str
     take: 200,
   });
 }
+
+// RF-25 (Fatia B) — tela admin /admin/usuarios. Sem paginação real ainda
+// (mesmo padrão de listPointsTransactions/reports.repository#listReports).
+export function listAllUsersForAdmin(tx: Prisma.TransactionClient) {
+  return tx.user.findMany({
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      isActive: true,
+      isMuted: true,
+      createdAt: true,
+      profile: { select: { displayName: true } },
+    },
+    orderBy: { username: 'asc' },
+    take: 500,
+  });
+}
+
+export function findUserById(tx: Prisma.TransactionClient, id: string) {
+  return tx.user.findUnique({ where: { id } });
+}
+
+export interface UserModerationData {
+  isActive?: boolean;
+  isMuted?: boolean;
+}
+
+// select explícito (nunca a linha inteira): sem isso, passwordHash vazaria
+// na resposta de PATCH /users/:id/moderation — mesmo shape público de
+// listAllUsersForAdmin acima.
+export function updateUserModeration(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  data: UserModerationData,
+) {
+  return tx.user.update({
+    where: { id: userId },
+    data,
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      isActive: true,
+      isMuted: true,
+      createdAt: true,
+      profile: { select: { displayName: true } },
+    },
+  });
+}

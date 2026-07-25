@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { requireAuth } from '../../middlewares/auth.middleware.js';
+import { requireNotMuted } from '../../middlewares/require-not-muted.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
 import { createNewsCommentSchema } from './feed.schemas.js';
@@ -32,6 +33,7 @@ feedRouter.get('/news', asyncHandler(listNewsHandler));
 feedRouter.get('/news/:newsItemId/comments', asyncHandler(listNewsCommentsHandler));
 feedRouter.post(
   '/news/:newsItemId/comments',
+  requireNotMuted,
   writeCommentLimiter,
   validateBody(createNewsCommentSchema),
   asyncHandler(createNewsCommentHandler),

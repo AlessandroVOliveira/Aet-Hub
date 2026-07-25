@@ -4,11 +4,14 @@ import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { requireRole } from '../../middlewares/require-role.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
-import { createReportSchema } from './reports.schemas.js';
+import { createReportSchema, moderationReasonSchema } from './reports.schemas.js';
 import {
+  banAuthorHandler,
   createReportHandler,
   dismissReportHandler,
   listReportsHandler,
+  muteAuthorHandler,
+  removeContentHandler,
 } from './reports.controller.js';
 
 // Módulo por ator/fluxo (RF-40, Fatia A): player denuncia, admin vê a fila e
@@ -37,3 +40,23 @@ reportsRouter.post(
 );
 reportsRouter.get('/', requireRole('ADMIN'), asyncHandler(listReportsHandler));
 reportsRouter.patch('/:id/dismiss', requireRole('ADMIN'), asyncHandler(dismissReportHandler));
+
+// RF-25 (Fatia B) — ações de moderação a partir da fila de denúncias.
+reportsRouter.patch(
+  '/:id/remove-content',
+  requireRole('ADMIN'),
+  validateBody(moderationReasonSchema),
+  asyncHandler(removeContentHandler),
+);
+reportsRouter.patch(
+  '/:id/ban-author',
+  requireRole('ADMIN'),
+  validateBody(moderationReasonSchema),
+  asyncHandler(banAuthorHandler),
+);
+reportsRouter.patch(
+  '/:id/mute-author',
+  requireRole('ADMIN'),
+  validateBody(moderationReasonSchema),
+  asyncHandler(muteAuthorHandler),
+);

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { requireAuth } from '../../middlewares/auth.middleware.js';
+import { requireNotMuted } from '../../middlewares/require-not-muted.middleware.js';
 import { requireRole } from '../../middlewares/require-role.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
@@ -59,6 +60,7 @@ communitiesRouter.get('/posts/:postId', asyncHandler(getPostDetailHandler));
 communitiesRouter.delete('/posts/:postId', asyncHandler(deletePostHandler));
 communitiesRouter.post(
   '/posts/:postId/comments',
+  requireNotMuted,
   writeContentLimiter,
   validateBody(createCommentSchema),
   asyncHandler(createCommentHandler),
@@ -77,6 +79,7 @@ communitiesRouter.patch(
 communitiesRouter.get('/:id/posts', asyncHandler(listPostsHandler));
 communitiesRouter.post(
   '/:id/posts',
+  requireNotMuted,
   writeContentLimiter,
   validateBody(createPostSchema),
   asyncHandler(createPostHandler),

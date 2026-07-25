@@ -102,6 +102,12 @@ export function deleteNewsCommentByIdForUser(
   return tx.newsComment.deleteMany({ where: { id, userId } });
 }
 
+// Sem filtro de userId: quem chama é admin removendo conteúdo denunciado
+// (RF-25), não o autor.
+export function deleteNewsCommentByIdAsAdmin(tx: Prisma.TransactionClient, id: string) {
+  return tx.newsComment.deleteMany({ where: { id } });
+}
+
 export function findNewsCommentById(tx: Prisma.TransactionClient, id: string) {
   return tx.newsComment.findUnique({ where: { id } });
 }

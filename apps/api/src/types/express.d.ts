@@ -1,9 +1,9 @@
-import type { AccessTokenPayload } from '../modules/auth/jwt.js';
+import type { RequestUser } from '../modules/auth/jwt.js';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: AccessTokenPayload;
+      user?: RequestUser;
     }
   }
 }
