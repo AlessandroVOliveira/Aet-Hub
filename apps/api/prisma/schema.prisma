@@ -90,6 +90,7 @@ enum NotificationType {
   REDEMPTION_UPDATED
   TOURNAMENT_COMPLETED
   POST_COMMENT
+  FOLLOWED
 }
 
 model User {
@@ -676,4 +677,17 @@ model Report {
   @@unique([reporterId, contentType, contentId])
   @@index([status, createdAt])
   @@map("reports")
+}
+
+model Follow {
+  id                    String   @id @default(cuid())
+  followerId            String   @map("follower_id")
+  followingId           String   @map("following_id")
+  followerDisplayName   String   @map("follower_display_name")
+  followingDisplayName  String   @map("following_display_name")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
 }
