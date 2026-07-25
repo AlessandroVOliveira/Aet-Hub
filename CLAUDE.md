@@ -192,11 +192,37 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   (que é a rodada de **destino**, ver item acima) — a fórmula
   `2^(maxRound - R) + 1` é só relativa entre partidas do mesmo torneio, então
   funciona mesmo com `R` rotulado como rodada de destino em vez de rodada
-  jogada. Empates ficam pela rodada de eliminação (dois semifinalistas
-  perdedores dividem o 3º lugar); não há critério de desempate além disso
-  nesta fase (RF-18 fica para o futuro). Resultado é persistido em
-  `Registration.finalPlacement`, calculado uma única vez no encerramento do
-  torneio (`tournaments.service.completeTournament`), não recalculado depois.
+  jogada. Resultado é persistido em `Registration.finalPlacement`, calculado
+  uma única vez no encerramento do torneio
+  (`tournaments.service.completeTournament`), não recalculado depois.
+- **Regra de desempate configurável (RF-18)**: por padrão, todo mundo
+  eliminado na mesma rodada empata no mesmo `placement` (ex.: os dois
+  perdedores da semifinal dividem o 3º lugar). Se `Tournament.tiebreakerRule`
+  estiver definido, `computePlacements` (mesmo arquivo) agrupa os empatados
+  por `placement` base e renumera dentro do grupo com
+  `novoPlacement = basePlacement + (nº de colegas do MESMO grupo com métrica
+  estritamente maior)` — `basePlacement` já representa "1 + quantos
+  jogadores estão em grupos melhores", só falta o deslocamento dentro do
+  próprio grupo. A métrica varia por regra: `WIN_BALANCE` conta vitórias em
+  **todo** o torneio (perdas são sempre 1 pra qualquer não-campeão em
+  eliminação simples, então saldo de vitórias = contagem de vitórias);
+  `HEAD_TO_HEAD` conta vitórias só em partidas onde os dois lados pertencem
+  ao mesmo grupo empatado. Empates residuais na métrica continuam
+  compartilhando o mesmo `placement` — é o fallback, automático pela própria
+  fórmula, idêntico ao comportamento sem regra configurada. Isso muda de
+  verdade o bônus de `TournamentPlacementReward` (`@@unique([tournamentId,
+  placement])`, um reward por posição exata) — sem desempate, dois
+  empatados em 3º recebiam cada um o bônus inteiro de 3º; com `WIN_BALANCE`,
+  só quem tem mais vitórias fica realmente em 3º, o outro cai pro bônus (ou
+  ausência de bônus) da posição seguinte. **`HEAD_TO_HEAD` é estruturalmente
+  inerte no motor atual** (só eliminação simples): dois jogadores eliminados
+  na mesma rodada nunca se enfrentaram entre si (se tivessem jogado, um já
+  teria sido eliminado antes) — a métrica é sempre 0 pra todo mundo no
+  grupo, então o fallback de empate compartilhado sempre se aplica na
+  prática. Implementado mesmo assim, genérico e correto, pronto pra
+  funcionar sozinho se o motor ganhar eliminação dupla/repescagem no
+  futuro — decisão tomada com o usuário via `AskUserQuestion` em vez de
+  restringir a regra só a `WIN_BALANCE`.
 - **Upload de arquivo (fotos de torneio, RF-15)**: `multer.memoryStorage()`,
   nunca `diskStorage` — o service só grava em disco (`UPLOAD_DIR`, env var)
   depois de validar a regra de negócio (torneio precisa estar `COMPLETED`),

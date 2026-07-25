@@ -217,7 +217,11 @@ export async function completeTournament(actor: AccessTokenPayload, id: string) 
         throw new AppError('Só é possível encerrar torneios em andamento', 409);
       }
 
-      const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(tx, id);
+      const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(
+        tx,
+        id,
+        tournament.tiebreakerRule,
+      );
       const registrations = await tournamentsRepository.findRegistrationUserIds(tx, id);
       const userIdByRegistrationId = new Map(
         registrations.map((registration) => [registration.id, registration.userId]),

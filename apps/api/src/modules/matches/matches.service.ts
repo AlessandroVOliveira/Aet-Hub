@@ -1,4 +1,4 @@
-import type { Match, Notification, Prisma } from '@prisma/client';
+import type { Match, Notification, Prisma, TiebreakerRule } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { getSocketServer } from '../../config/socket.js';
 import { AppError } from '../../utils/app-error.js';
@@ -341,6 +341,7 @@ export interface FinalPlacementsResult {
 export async function computeFinalPlacements(
   tx: Prisma.TransactionClient,
   tournamentId: string,
+  tiebreakerRule?: TiebreakerRule | null,
 ): Promise<FinalPlacementsResult> {
   const finalMatch = await matchesRepository.findFinalMatch(tx, tournamentId);
   if (!finalMatch || finalMatch.status !== 'COMPLETED') {
@@ -360,7 +361,7 @@ export async function computeFinalPlacements(
   }));
 
   return {
-    placements: placementCalculator.computePlacements(matchOutcomes),
+    placements: placementCalculator.computePlacements(matchOutcomes, tiebreakerRule),
     matchOutcomes,
   };
 }
