@@ -690,6 +690,60 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   (corrigir uma partida cujo vencedor errado já jogou E venceu mais uma
   rodada) fica pra uma fatia futura, o admin precisa corrigir a partida
   seguinte primeiro.
+- **Editar/excluir dados de players (RF-16) — soft delete via campo já
+  reservado no schema**: `User.deletedAt` existia desde a Fase 1 mas
+  nenhum código escrevia nele — já era lido por
+  `app_points_leaderboard()`/`app_dm_recipient_display_name()`
+  (`deleted_at IS NULL`), confirmando soft delete como o caminho já
+  esperado pelo resto do sistema, não um `DELETE` físico (que quebraria
+  por FK restritiva em qualquer player com histórico — só
+  `Profile`/`Address` têm `onDelete: Cascade` contra `User`, e não existe
+  policy de RLS `FOR DELETE ON users` em nenhuma migration). Exclusão é
+  **reversível** (decisão de produto, mesmo padrão de ban/mute): reaproveita
+  a MESMA rota `PATCH /users/:id/moderation` (RF-25) com um terceiro campo
+  `deleted: boolean`, em vez de uma rota `DELETE`/`restore` dedicada —
+  soft delete reversível com motivo é exatamente a mesma natureza de
+  "ação administrativa" que a rota já cobre; o guard de auto-ação já
+  existente (`targetUserId === actor.id → 400`) cobre auto-exclusão de
+  graça. **Nenhuma migration nova foi necessária** (campo já existe,
+  `users_self_or_admin_update` já libera admin pra qualquer coluna).
+- **`deletedAt` é uma flag independente de `isActive`, não sobreposta**:
+  `auth.middleware.ts#requireAuth` e `auth.service.ts#login` checam as
+  duas condições separadamente (`!user.isActive || user.deletedAt`),
+  mesma mensagem genérica de "conta suspensa" nos dois casos (não revela
+  publicamente ban vs. exclusão pra quem já tem JWT válido ou tentando
+  logar). Consequência intencional: um usuário banido-E-excluído precisa
+  das DUAS reversões (`isActive: true` E `deleted: false`) pra voltar a
+  logar — restaurar sozinho não basta se ele também estava banido.
+  Testado explicitamente esse caso combinado (não só os dois isolados).
+- **Edição de dados (username/e-mail/perfil) é endpoint novo** (`PATCH
+  /users/:id`, `adminUpdateUserSchema` em `users.schemas.ts`) —
+  **sem guard de auto-edição**, diferente de `moderateUser`: editar o
+  próprio username/perfil não é perigoso como auto-banir (o admin já
+  pode fazer isso via `/me`). Reaproveita quase 100% do shape de
+  `updateProfileSchema`/`usersRepository.updateProfile` já existente pro
+  self-service, só acrescentando `username`/`email` (superfície nova,
+  nenhum outro lugar do sistema editava essas duas colunas até aqui) e
+  `reason` obrigatório. `changes` (diff campo a campo, só o que
+  realmente mudou vs. valor atual) vai pro `AuditLog`
+  (`USER_EDITED_BY_ADMIN`) — mesma convenção de "só loga o que mudou" de
+  `moderateUser`.
+- **Gotcha real de `error.meta.target` do Prisma sob role com RLS**: a
+  primeira versão tentava um único `tx.user.update({ data: { username,
+  email } })` e diferenciar qual campo colidiu (P2002) inspecionando
+  `error.meta.target` — funciona perfeitamente testado direto com a role
+  `aet_hub_owner` (`meta.target: ["username"]`), mas sob a role da
+  aplicação (`aet_hub_app`, a que toda request real usa via `withRls`)
+  o Postgres **não devolve o target** (`meta.target: null`), fazendo o
+  catch sempre cair no fallback genérico. Fix: `updateUserAccountFields`
+  chamado em **duas transações internas separadas** (uma só com
+  `username`, outra só com `email`) quando os dois campos vêm no
+  payload — o P2002 pego em cada catch isolado é necessariamente sobre
+  aquele campo específico, sem depender de metadata nenhuma. Achado só
+  no teste real via `curl` contra o servidor rodando (não reproduzia
+  num script standalone com a role owner) — mais um caso do padrão já
+  documentado aqui de que só verificação fim a fim pega esse tipo de
+  coisa.
 
 ## Padrões do frontend (apps/web)
 
@@ -1003,6 +1057,52 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   variant="error">` inline do form, sem introduzir endpoint/hook novo só
   pra essa checagem (caso raro: só acontece se o admin tentar corrigir
   depois do torneio já ter sido encerrado).
+- **Editar/excluir dados de players (RF-16) — frontend**: `AdminUserForm.tsx`
+  (novo) segue o padrão `useState` controlado de `ProfileForm.tsx` (não
+  `react-hook-form` — mesmo racional já documentado: bom pra formulários
+  com poucos campos escalares sem array dinâmico), com campos extras de
+  `username`/`email` e um **motivo obrigatório inline no próprio
+  formulário** (`textarea` com contador `{length}/500`, mesmo estilo
+  visual de `ReportForm.tsx`/contestação de resultado) — decisão
+  deliberada de divergir do `window.prompt()` usado em Banir/Silenciar/
+  Excluir (ações rápidas de uma linha da tabela): um formulário completo
+  já em andamento torna um prompt separado no submit destoante.
+  `AdminUserEditPage.tsx` clona o molde de `AdminGameFormPage.tsx`
+  (**sem `GET /users/:id` novo** — reaproveita `useAdminUsers()` já
+  cacheada e faz `.find(id)`), mas **sem modo "create"** (RF-16 não cria
+  usuário, isso já é cadastro público). `toPayload` só inclui no
+  `AdminUpdateUserPayload` os campos que realmente mudaram vs. o
+  `AdminUser` original (mesmo espírito do diff de `changes` no backend)
+  — evita disparar um 409 de duplicata reenviando o próprio
+  username/email inalterado do alvo.
+- **`AdminUsersPage.tsx` ganha um terceiro par de ação** (Excluir/
+  Restaurar, ao lado de Banir/Silenciar já existentes) reaproveitando o
+  mesmo fluxo `window.confirm` → `promptReason()` → `moderateUser.mutate`
+  com `payload: { deleted, reason }` — sem nenhuma mutation nova (a
+  mesma `useModerateUser` já cobre os três flags). Chip novo
+  `deletedStatusChip` (`utils/format.ts`) difere dos outros dois helpers
+  de chip do arquivo (`activeStatusChip`/`mutedStatusChip`) por
+  devolver `null` (não renderiza nada) quando o usuário não está
+  excluído, em vez de sempre ter os dois estados — usuários excluídos
+  continuam visíveis na listagem (sem paginação, sem filtro/toggle
+  novo), só ganham o chip extra ao lado do chip de conta e a linha
+  esmaecida (`opacity-50` estendido pra `!isActive || deletedAt`).
+  Link "Editar" novo na coluna de ações, mesmo estilo visual dos botões
+  vizinhos.
+- **Testado fim a fim via Playwright** (extensão Chrome não conectada
+  nesta sessão, mesmo gotcha já visto na fatia RF-19 — script Node
+  ad-hoc, não fica no repo): login admin, navegação até
+  `/admin/usuarios` **via clique no link de nav, não `page.goto()`**
+  (gotcha de sessão já documentado — reload aborta o `GET /users/me` da
+  reidratação), edição com campos pré-preenchidos corretamente
+  (username/email do alvo, não do admin), troca de jogo favorito via
+  select populado por `useGames()`, motivo preenchido, salvar e
+  confirmar retorno à lista com o novo `displayName` refletido; 409 de
+  duplicata de username renderizado como erro no formulário sem crash
+  (permanece na tela de edição); toggle Excluir → chip "Excluído"
+  aparece e linha esmaece → Restaurar → chip some. Dados de teste
+  (`rf16p1`/`rf16p2`, renomeados durante os testes) removidos do banco
+  ao final via `psql` direto.
 
 ## Banco de dados local (Docker Compose)
 
