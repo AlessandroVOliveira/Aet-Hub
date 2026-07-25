@@ -787,6 +787,40 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `actorUserId` só aponta pra usuários `ADMIN` (só ação administrativa
   gera log), e `users_admin_visible_to_authenticated` já libera qualquer
   sessão autenticada a ver linhas com `role = 'ADMIN'`.
+- **Seguir players (RF-41) — snapshot denormalizado igual DM/Report, sem
+  função `SECURITY DEFINER` nova**: `Follow` (`modules/follows/`) não tem
+  nenhuma relation Prisma pra `User` (mesmo motivo de `ChatMessage`/
+  `DirectMessage`/`Report`: RLS de `users`/`profiles` é self/ADMIN/
+  colega-de-torneio, e qualquer player pode seguir qualquer outro a
+  partir de `/ranking`, que expõe todo mundo). `followingDisplayName` é
+  resolvido **reaproveitando** `app_dm_recipient_display_name()` (a
+  função já existente da DM, chamada via `findRecipientDisplayName`
+  importado direto de `direct-messages.repository.ts`) — o comportamento
+  (nome de conta ativa, bypassando RLS como fronteira estreita) é
+  exatamente o mesmo, não precisou de função nova nem duplicar a query.
+  `followerDisplayName` vem do próprio `Profile` do ator (sempre
+  autovisível), igual ao `senderDisplayName` do chat. RLS de `follows`:
+  três policies self-only (`follower_id = sessão OR following_id =
+  sessão` cobre as duas listas numa policy de SELECT só), sem GRANT de
+  UPDATE (relação binária, mesmo padrão de `post_likes`) — `unfollow` é
+  `deleteMany` (idempotente por design, o service decide 404 pelo
+  `count` em vez de depender de exceção do Prisma). Notificação
+  `FOLLOWED` segue o molde de `POST_COMMENT` em `app_create_notification`
+  (`EXISTS` contra a linha `follows` que autoriza); gotcha de enum já
+  documentado (`ALTER TYPE ADD VALUE` e o `CREATE OR REPLACE FUNCTION`
+  que o usa em migrations separadas) respeitado com o par `add_follows` /
+  `follows_rls_policies`. **Fora de escopo de propósito** (mesmo corte de
+  RF-40 Fatia A/B): feed de atividade dos seguidos, contagem de
+  seguidores em perfil de terceiros (não existe perfil público de outro
+  player hoje) e rate limiter dedicado. Testado fim a fim via
+  `claude-in-chrome` com dois players reais criados via `POST
+  /auth/register` (CEP real de Alegrete obtido da própria ViaCEP): seguir
+  pelo `/ranking`, notificação chegando pro seguido, listas "Seguindo"/
+  "Seguidores" no `/perfil` dos dois lados, unfollow pela lista, guard de
+  auto-seguir (400) e de duplicata (409) via `curl`. Dados de teste
+  removidos via `psql` direto (`docker exec aet-hub-postgres-1 psql`,
+  usuários com follows/notifications sem FK cascade — apagados na ordem
+  notifications → follows → users).
 
 ## Padrões do frontend (apps/web)
 
@@ -1213,6 +1247,20 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   torneio original intacto, id novo e distinto. Dados de teste removidos
   via `DELETE /tournaments/:id` direto pela API (ambos nasceram `DRAFT`,
   dispensou `psql`).
+- **Seguir players (RF-41) — sem tela de perfil público, botão entra em
+  `/ranking`**: único lugar hoje que lista todo mundo é `RankingPage.tsx`
+  (via `app_points_leaderboard()`), que já tinha um ícone de ação por
+  linha (`MessageCircle` → DM) — o botão de seguir/deixar de seguir
+  (`UserPlus`/`UserCheck` de `lucide-react`) entra ao lado, mesmo padrão
+  de toggle já usado em `CommunityPage.tsx`
+  (`post.likedByMe ? unlikePost : likePost`), usando um `Set` construído
+  de `useFollowing()` pra saber `isFollowing` por linha. `ProfilePage.tsx`
+  ganhou duas seções nesta fatia — "Seguindo" (com botão "Deixar de
+  seguir" por item) e "Seguidores" (só leitura) — mesmo estilo visual do
+  "Histórico de torneios" já existente na página. `NOTIFICATION_ICONS`
+  (`NotificationsPage.tsx`, `Record<NotificationType, ...>`) precisou da
+  chave nova `FOLLOWED` (`UserPlus`) só pra manter a exaustividade do
+  tipo — sem isso o TypeScript quebra a build.
 
 ## Banco de dados local (Docker Compose)
 
