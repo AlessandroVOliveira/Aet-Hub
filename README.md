@@ -13,8 +13,10 @@ Regras de contribuição e contexto para trabalho assistido por IA em
 - **Frontend** (`apps/web`): React + Vite + TypeScript
 - **Backend** (`apps/api`): Node.js + Express + TypeScript
 - **Banco de dados**: PostgreSQL, acessado via Prisma ORM
-- **Compartilhado** (`packages/shared`): tipos e utilitários usados por
-  frontend e backend
+- **Compartilhado** (`packages/shared`): reservado para tipos e
+  utilitários compartilhados entre frontend e backend — hoje é só
+  scaffolding vazio, sem uso real ainda (populado quando houver um
+  segundo consumidor concreto para o mesmo tipo)
 - Monorepo gerenciado com **npm workspaces**
 
 ## Estrutura do repositório
@@ -24,7 +26,7 @@ apps/
   web/      # frontend React
   api/      # backend Node/Express + schema Prisma
 packages/
-  shared/   # tipos compartilhados entre web e api
+  shared/   # scaffolding vazio, reservado pra tipos compartilhados (sem uso ainda)
 docs/       # PRD e demais documentos de produto
 ```
 
@@ -51,6 +53,12 @@ docs/       # PRD e demais documentos de produto
    cp .env.example .env
    ```
 
+   `FREENEWSAPI_API_KEY` também é **obrigatória** — a API valida todas as
+   variáveis de ambiente na subida e recusa iniciar sem uma chave real
+   (não é só para testar o feed de notícias, é para o processo inteiro
+   rodar). Cadastre-se gratuitamente em
+   [freenewsapi.io](https://freenewsapi.io) e cole a chave gerada.
+
 3. Suba o Postgres local e crie as roles de runtime (RLS exige três roles
    separadas — ver `CLAUDE.md`):
 
@@ -60,18 +68,37 @@ docs/       # PRD e demais documentos de produto
    ```
 
 4. Gere o client do Prisma e aplique as migrations (cria as tabelas e as
-   policies de Row Level Security):
+   policies de Row Level Security). Os comandos `prisma generate`/
+   `prisma migrate` são chamados pelo Prisma CLI diretamente, que só
+   carrega um `.env` do diretório do schema ou do diretório atual — não
+   do `.env` da raiz do monorepo — por isso é preciso injetá-lo
+   explicitamente com `dotenv-cli` (baixado sob demanda pelo `npx`, sem
+   precisar instalar nada):
 
    ```bash
-   npm run prisma:generate --workspace apps/api
-   npm run prisma:migrate --workspace apps/api
+   npx dotenv-cli -e .env -- npm run prisma:generate --workspace apps/api
+   npx dotenv-cli -e .env -- npm run prisma:migrate --workspace apps/api
    ```
 
    Se em algum momento você rodar `prisma migrate reset`, rode
    `npm run db:roles --workspace apps/api` de novo em seguida — o reset
    recria o schema do banco e apaga os grants de nível de schema.
 
-5. Suba o backend e o frontend em terminais separados:
+5. Popule o catálogo básico (jogos e conquistas) e crie uma conta admin de
+   teste — o cadastro público sempre cria contas `PLAYER`, então este é o
+   único jeito de conseguir uma conta `ADMIN` sem editar o banco na mão:
+
+   ```bash
+   npm run db:seed --workspace apps/api
+   ```
+
+   Por padrão cria o admin `admin`/`admin123` (sobrescrevível via
+   `ADMIN_SEED_USERNAME`/`ADMIN_SEED_PASSWORD`/`ADMIN_SEED_EMAIL` no
+   `.env`, ver `.env.example`). Sem este passo, a criação de torneio
+   quebra (não há nenhum jogo cadastrado) e não existe forma de logar
+   como admin.
+
+6. Suba o backend e o frontend em terminais separados:
 
    ```bash
    npm run dev:api
@@ -101,6 +128,7 @@ docs/       # PRD e demais documentos de produto
 | `npm run db:down --workspace apps/api`        | Derruba o Postgres local                         |
 | `npm run db:roles --workspace apps/api`       | Cria/atualiza as roles de runtime do banco (RLS) |
 | `npm run prisma:migrate --workspace apps/api` | Roda as migrations do Prisma                     |
+| `npm run db:seed --workspace apps/api`        | Popula jogos/conquistas e cria o admin de teste  |
 
 ## Variáveis de ambiente
 
