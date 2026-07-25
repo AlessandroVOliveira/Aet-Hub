@@ -3,8 +3,12 @@ import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { requireRole } from '../../middlewares/require-role.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
-import { recordMatchResultSchema } from './matches.schemas.js';
-import { getBracketHandler, recordMatchResultHandler } from './matches.controller.js';
+import { recordMatchResultSchema, correctMatchResultSchema } from './matches.schemas.js';
+import {
+  getBracketHandler,
+  recordMatchResultHandler,
+  correctMatchResultHandler,
+} from './matches.controller.js';
 
 export const matchesRouter = Router();
 
@@ -16,4 +20,12 @@ matchesRouter.post(
   requireRole('ADMIN'),
   validateBody(recordMatchResultSchema),
   asyncHandler(recordMatchResultHandler),
+);
+// RF-19: PATCH corrige um resultado já registrado (POST registra pela
+// primeira vez) — mesma rota, verbo diferente.
+matchesRouter.patch(
+  '/:id/result',
+  requireRole('ADMIN'),
+  validateBody(correctMatchResultSchema),
+  asyncHandler(correctMatchResultHandler),
 );

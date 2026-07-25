@@ -78,6 +78,30 @@ export function updateMatchResult(
   });
 }
 
+// RF-19: diferente de updateMatchResult, não mexe em status/playedAt — a
+// partida já está COMPLETED e o playedAt original não deve mudar, é uma
+// correção do resultado, não um novo jogo.
+export function correctMatchResult(
+  tx: Prisma.TransactionClient,
+  id: string,
+  data: { winnerRegistrationId: string; scoreA?: number; scoreB?: number },
+) {
+  return tx.match.update({ where: { id }, data });
+}
+
+// RF-19: fix do snapshot registrationAId/registrationBId da partida
+// seguinte quando o vencedor de uma partida corrigida já havia avançado
+// (ver comentário de bracketSlotId no topo deste arquivo).
+export function updateMatchParticipant(
+  tx: Prisma.TransactionClient,
+  matchId: string,
+  side: 'A' | 'B',
+  registrationId: string,
+) {
+  const data = side === 'A' ? { registrationAId: registrationId } : { registrationBId: registrationId };
+  return tx.match.update({ where: { id: matchId }, data });
+}
+
 // _max.round sobre BracketSlot é sempre totalRounds (todos os slots de
 // todas as rodadas são criados de uma vez em generateBracket), então isto
 // acha a partida cujo destino é o único slot da rodada final — retorna

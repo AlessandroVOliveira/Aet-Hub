@@ -2,6 +2,7 @@ import type { Match, Notification, Prisma } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { getSocketServer } from '../../config/socket.js';
 import { AppError } from '../../utils/app-error.js';
+import { recordAuditLog } from '../../utils/audit-log.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as tournamentsRepository from '../tournaments/tournaments.repository.js';
 import * as notificationsRepository from '../notifications/notifications.repository.js';
@@ -10,7 +11,7 @@ import * as matchesRepository from './matches.repository.js';
 import * as bracketGenerator from './bracket-generator.js';
 import * as placementCalculator from './placement-calculator.js';
 import type { PlacementResult, MatchOutcome } from './placement-calculator.js';
-import type { RecordMatchResultInput } from './matches.schemas.js';
+import type { RecordMatchResultInput, CorrectMatchResultInput } from './matches.schemas.js';
 
 // Exportado: tournaments.service (startTournament/completeTournament) e
 // este módulo (recordMatchResult) chamam pós-commit do withRls — nunca de
@@ -216,6 +217,116 @@ export async function recordMatchResult(
   // estado obsoleto.
   broadcastBracketUpdated(tournamentId);
   emitNewNotifications(notifications);
+  return updatedMatch;
+}
+
+// RF-19: corrige o resultado de uma partida já COMPLETED. Só permitido
+// enquanto o torneio está IN_PROGRESS (pontos/finalPlacement só existem a
+// partir de completeTournament, calculados uma única vez — corrigir depois
+// disso exigiria reverter ledger/colocação, fora de escopo desta fatia).
+// Cascata limitada a 1 nível: se o vencedor já avançou e a partida
+// seguinte já foi disputada, rejeita — o admin precisa corrigir a
+// seguinte primeiro.
+export async function correctMatchResult(
+  actor: AccessTokenPayload,
+  matchId: string,
+  input: CorrectMatchResultInput,
+) {
+  const { updatedMatch, tournamentId } = await withRls(
+    { userId: actor.id, role: actor.role },
+    async (tx) => {
+      const match = await matchesRepository.findMatchById(tx, matchId);
+      if (!match) {
+        throw new AppError('Partida não encontrada', 404);
+      }
+      if (match.status !== 'COMPLETED') {
+        throw new AppError(
+          'Esta partida ainda não tem resultado registrado — use o registro normal',
+          400,
+        );
+      }
+
+      const tournament = await tournamentsRepository.findTournamentById(tx, match.tournamentId);
+      if (!tournament || tournament.status !== 'IN_PROGRESS') {
+        throw new AppError(
+          'Só é possível corrigir o resultado enquanto o torneio está em andamento',
+          409,
+        );
+      }
+
+      if (
+        input.winnerRegistrationId !== match.registrationAId &&
+        input.winnerRegistrationId !== match.registrationBId
+      ) {
+        throw new AppError('Vencedor informado não participa desta partida', 400);
+      }
+
+      // Mesma matemática de bracket-generator.ts#maybeCreateNextRoundMatch,
+      // pra localizar com precisão a partida seguinte (se existir) sem
+      // buscar por registrationId (ambíguo — o mesmo jogador aparece em
+      // registrationAId/BId de partidas anteriores também).
+      const targetSlot = await matchesRepository.findBracketSlotById(tx, match.bracketSlotId);
+      const nextPosition = Math.ceil(targetSlot.position / 2);
+      const nextSlot = await matchesRepository.findBracketSlotByPosition(
+        tx,
+        match.tournamentId,
+        targetSlot.round + 1,
+        nextPosition,
+      );
+      const downstreamMatch = nextSlot
+        ? await matchesRepository.findMatchByBracketSlotId(tx, nextSlot.id)
+        : null;
+
+      if (downstreamMatch && downstreamMatch.status !== 'SCHEDULED') {
+        throw new AppError(
+          'O vencedor desta partida já disputou a partida seguinte — corrija primeiro o resultado dela',
+          409,
+        );
+      }
+
+      const updated = await matchesRepository.correctMatchResult(tx, matchId, {
+        winnerRegistrationId: input.winnerRegistrationId,
+        scoreA: input.scoreA,
+        scoreB: input.scoreB,
+      });
+
+      await matchesRepository.updateBracketSlotRegistration(
+        tx,
+        targetSlot.id,
+        input.winnerRegistrationId,
+      );
+
+      if (downstreamMatch) {
+        const side = targetSlot.position % 2 === 1 ? 'A' : 'B';
+        await matchesRepository.updateMatchParticipant(
+          tx,
+          downstreamMatch.id,
+          side,
+          input.winnerRegistrationId,
+        );
+      }
+
+      await recordAuditLog(tx, {
+        actorUserId: actor.id,
+        action: 'MATCH_RESULT_CORRECTED',
+        entityType: 'MATCH',
+        entityId: matchId,
+        metadata: {
+          reason: input.reason,
+          previousWinnerRegistrationId: match.winnerRegistrationId,
+          previousScoreA: match.scoreA,
+          previousScoreB: match.scoreB,
+          newWinnerRegistrationId: input.winnerRegistrationId,
+          newScoreA: input.scoreA ?? null,
+          newScoreB: input.scoreB ?? null,
+        },
+      });
+
+      return { updatedMatch: updated, tournamentId: match.tournamentId };
+    },
+  );
+
+  broadcastBracketUpdated(tournamentId);
   return updatedMatch;
 }
 
