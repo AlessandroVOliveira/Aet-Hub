@@ -17,6 +17,7 @@ import { notificationsRouter } from './modules/notifications/notifications.route
 import { communitiesRouter } from './modules/communities/communities.routes.js';
 import { feedRouter } from './modules/feed/feed.routes.js';
 import { reportsRouter } from './modules/reports/reports.routes.js';
+import { auditLogsRouter } from './modules/audit-logs/audit-logs.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -70,6 +71,7 @@ app.use('/notifications', notificationsRouter);
 app.use('/communities', communitiesRouter);
 app.use('/feed', feedRouter);
 app.use('/reports', reportsRouter);
+app.use('/audit-logs', auditLogsRouter);
 
 app.use(errorHandler);
 
