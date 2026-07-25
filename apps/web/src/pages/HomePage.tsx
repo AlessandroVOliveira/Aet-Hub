@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOpenTournaments } from '@/hooks/useOpenTournaments';
 import { useMyRegistrations } from '@/hooks/useMyRegistrations';
 import { useMyWallet } from '@/hooks/useMyWallet';
+import { useMyXp } from '@/hooks/useMyXp';
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
@@ -29,6 +30,7 @@ export function HomePage() {
   const openTournamentsQuery = useOpenTournaments();
   const myRegistrationsQuery = useMyRegistrations();
   const walletQuery = useMyWallet();
+  const xpQuery = useMyXp();
 
   const featured = openTournamentsQuery.data?.tournaments[0];
 
@@ -40,6 +42,10 @@ export function HomePage() {
   const pendingCheckins = (myRegistrationsQuery.data?.registrations ?? []).filter(
     (registration) => registration.status === 'CONFIRMED' && registration.checkin === null,
   );
+
+  const homeXpFilledSegments = xpQuery.data
+    ? Math.round((xpQuery.data.progress.xpIntoLevel / xpQuery.data.progress.xpForNextLevel) * 10)
+    : 0;
 
   return (
     <div>
@@ -183,6 +189,34 @@ export function HomePage() {
           </div>
 
           <aside className="lg:col-span-4 space-y-6">
+            {xpQuery.data && (
+              <div className="bg-navy-light p-6 ring-1 ring-silver/10">
+                <div className="flex justify-between items-end mb-4">
+                  <div>
+                    <p className="text-[10px] font-mono text-silver-muted">PLAYER_LEVEL</p>
+                    <p className="font-display text-4xl italic leading-none">
+                      LVL {xpQuery.data.progress.level}
+                    </p>
+                  </div>
+                  <p className="font-mono text-xs text-silver-muted">
+                    {xpQuery.data.progress.xpIntoLevel} / {xpQuery.data.progress.xpForNextLevel} XP
+                  </p>
+                </div>
+                <div className="flex gap-1 h-3">
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <div
+                      key={index}
+                      className={
+                        index < homeXpFilledSegments
+                          ? 'flex-1 bg-ember'
+                          : 'flex-1 bg-navy-dark ring-1 ring-silver/10'
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="bg-navy-light p-6 ring-1 ring-silver/10">
               <p className="text-[10px] font-mono text-silver-muted mb-2">MEU SALDO</p>
 
