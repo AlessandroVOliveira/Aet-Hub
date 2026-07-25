@@ -81,8 +81,9 @@ export async function login(
   }
 
   // Checado depois da senha, nunca antes — não revela que a conta está
-  // banida pra quem não sabe a senha (RF-25, Fatia B).
-  if (!user.isActive) {
+  // banida/excluída pra quem não sabe a senha (RF-25 / RF-16). deletedAt
+  // é uma flag independente de isActive (ver auth.middleware.ts).
+  if (!user.isActive || user.deletedAt) {
     throw new AppError('Sua conta foi suspensa. Entre em contato com a organização.', 403);
   }
 

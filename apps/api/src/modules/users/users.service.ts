@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { AppError } from '../../utils/app-error.js';
 import { recordAuditLog } from '../../utils/audit-log.js';
@@ -6,7 +7,16 @@ import * as matchesRepository from '../matches/matches.repository.js';
 import * as registrationsRepository from '../registrations/registrations.repository.js';
 import * as gamesRepository from '../games/games.repository.js';
 import * as usersRepository from './users.repository.js';
-import type { ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
+import type { AdminUpdateUserInput, ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
+
+const PROFILE_FIELDS = [
+  'displayName',
+  'favoriteGameId',
+  'favoriteCharacter',
+  'theme',
+  'avatarUrl',
+  'bio',
+] as const;
 
 export async function getMyProfile(actor: AccessTokenPayload) {
   return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
@@ -106,6 +116,10 @@ export async function moderateUser(
     const updated = await usersRepository.updateUserModeration(tx, targetUserId, {
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
       ...(input.isMuted !== undefined ? { isMuted: input.isMuted } : {}),
+      // RF-16: soft delete/restauração reaproveitando a mesma infra de
+      // ação administrativa reversível com motivo (ver adminUpdateUserSchema
+      // para a edição de dados propriamente dita).
+      ...(input.deleted !== undefined ? { deletedAt: input.deleted ? new Date() : null } : {}),
     });
 
     if (input.isActive !== undefined && input.isActive !== target.isActive) {
@@ -126,7 +140,110 @@ export async function moderateUser(
         metadata: { reason: input.reason },
       });
     }
+    if (input.deleted !== undefined && input.deleted !== (target.deletedAt !== null)) {
+      await recordAuditLog(tx, {
+        actorUserId: actor.id,
+        action: input.deleted ? 'USER_DELETED' : 'USER_RESTORED',
+        entityType: 'USER',
+        entityId: targetUserId,
+        metadata: { reason: input.reason },
+      });
+    }
 
     return updated;
+  });
+}
+
+// RF-16 — edição de dados de players pelo admin (username/email de User +
+// campos de Profile), com motivo obrigatório e diff completo no AuditLog
+// (mesma convenção de "só loga o que realmente mudou" de moderateUser).
+// Sem guard de auto-edição: diferente de moderateUser (banir/silenciar/
+// excluir a própria conta é perigoso o bastante pra bloquear), editar o
+// próprio username/perfil não é — o admin já pode fazer isso via /me.
+export async function updateUserByAdmin(
+  actor: AccessTokenPayload,
+  targetUserId: string,
+  input: AdminUpdateUserInput,
+) {
+  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const target = await usersRepository.findUserById(tx, targetUserId);
+    if (!target) {
+      throw new AppError('Usuário não encontrado', 404);
+    }
+
+    if (input.favoriteGameId) {
+      const game = await gamesRepository.findGameById(tx, input.favoriteGameId);
+      if (!game) {
+        throw new AppError('Jogo não encontrado', 404);
+      }
+    }
+
+    const targetProfile = await usersRepository.findProfileByUserId(tx, targetUserId);
+
+    const changes: Record<string, { from: string | null; to: string | null }> = {};
+    if (input.username !== undefined && input.username !== target.username) {
+      changes.username = { from: target.username, to: input.username };
+    }
+    if (input.email !== undefined && input.email !== target.email) {
+      changes.email = { from: target.email, to: input.email };
+    }
+    for (const field of PROFILE_FIELDS) {
+      const value = input[field];
+      if (value !== undefined && value !== (targetProfile?.[field] ?? null)) {
+        changes[field] = { from: targetProfile?.[field] ?? null, to: value };
+      }
+    }
+
+    // Duas chamadas separadas (não uma só com os dois campos): sob a role
+    // com RLS (aet_hub_app), o Postgres não devolve error.meta.target no
+    // P2002 (só populado testado com a role owner) — em vez de depender
+    // desse metadata pra saber qual campo colidiu, cada update isolado
+    // garante que o P2002 pego no catch É sobre aquele campo específico.
+    if (input.username !== undefined) {
+      try {
+        await usersRepository.updateUserAccountFields(tx, targetUserId, { username: input.username });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new AppError('Nome de usuário já está em uso', 409);
+        }
+        throw error;
+      }
+    }
+    if (input.email !== undefined) {
+      try {
+        await usersRepository.updateUserAccountFields(tx, targetUserId, { email: input.email });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new AppError('E-mail já está em uso', 409);
+        }
+        throw error;
+      }
+    }
+
+    const hasProfileChanges = PROFILE_FIELDS.some((field) => input[field] !== undefined);
+    if (hasProfileChanges) {
+      await usersRepository.updateProfile(tx, targetUserId, {
+        ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+        ...(input.favoriteGameId !== undefined ? { favoriteGameId: input.favoriteGameId } : {}),
+        ...(input.favoriteCharacter !== undefined
+          ? { favoriteCharacter: input.favoriteCharacter }
+          : {}),
+        ...(input.theme !== undefined ? { theme: input.theme } : {}),
+        ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        ...(input.bio !== undefined ? { bio: input.bio } : {}),
+      });
+    }
+
+    if (Object.keys(changes).length > 0) {
+      await recordAuditLog(tx, {
+        actorUserId: actor.id,
+        action: 'USER_EDITED_BY_ADMIN',
+        entityType: 'USER',
+        entityId: targetUserId,
+        metadata: { reason: input.reason, changes },
+      });
+    }
+
+    return usersRepository.findUserForAdmin(tx, targetUserId);
   });
 }

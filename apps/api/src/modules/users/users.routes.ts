@@ -3,7 +3,7 @@ import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { requireRole } from '../../middlewares/require-role.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/async-handler.js';
-import { moderateUserSchema, updateProfileSchema } from './users.schemas.js';
+import { adminUpdateUserSchema, moderateUserSchema, updateProfileSchema } from './users.schemas.js';
 import {
   getMyHistoryHandler,
   getMyProfileHandler,
@@ -11,6 +11,7 @@ import {
   listAllUsersHandler,
   moderateUserHandler,
   updateMyProfileHandler,
+  updateUserByAdminHandler,
 } from './users.controller.js';
 
 export const usersRouter = Router();
@@ -29,4 +30,11 @@ usersRouter.patch(
   requireRole('ADMIN'),
   validateBody(moderateUserSchema),
   asyncHandler(moderateUserHandler),
+);
+// RF-16 — edição de dados de players pelo admin (username/e-mail/Profile).
+usersRouter.patch(
+  '/:id',
+  requireRole('ADMIN'),
+  validateBody(adminUpdateUserSchema),
+  asyncHandler(updateUserByAdminHandler),
 );

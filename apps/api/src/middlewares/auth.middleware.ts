@@ -27,10 +27,17 @@ export const requireAuth = asyncHandler(
     }
 
     const user = await withRls({ userId: payload.id, role: payload.role }, (tx) =>
-      tx.user.findUnique({ where: { id: payload.id }, select: { isActive: true, isMuted: true } }),
+      tx.user.findUnique({
+        where: { id: payload.id },
+        select: { isActive: true, isMuted: true, deletedAt: true },
+      }),
     );
 
-    if (!user || !user.isActive) {
+    // deletedAt (RF-16) é checado separado de isActive (RF-25) — soft
+    // delete e ban são ações independentes e reversíveis cada uma por
+    // conta própria; a mesma mensagem genérica cobre os dois casos, sem
+    // revelar qual dos dois aconteceu pra quem já tem um JWT válido.
+    if (!user || !user.isActive || user.deletedAt) {
       res.status(403).json({ message: 'Sua conta foi suspensa' });
       return;
     }

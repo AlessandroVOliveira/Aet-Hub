@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import * as usersService from './users.service.js';
-import type { ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
+import type { AdminUpdateUserInput, ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
 
 export async function getMyProfileHandler(req: Request, res: Response): Promise<void> {
   const profile = await usersService.getMyProfile(req.user!);
@@ -32,6 +32,15 @@ export async function moderateUserHandler(req: Request, res: Response): Promise<
     req.user!,
     req.params.id as string,
     req.body as ModerateUserInput,
+  );
+  res.status(200).json({ user });
+}
+
+export async function updateUserByAdminHandler(req: Request, res: Response): Promise<void> {
+  const user = await usersService.updateUserByAdmin(
+    req.user!,
+    req.params.id as string,
+    req.body as AdminUpdateUserInput,
   );
   res.status(200).json({ user });
 }
