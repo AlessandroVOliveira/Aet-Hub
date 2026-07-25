@@ -744,6 +744,23 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   num script standalone com a role owner) — mais um caso do padrão já
   documentado aqui de que só verificação fim a fim pega esse tipo de
   coisa.
+- **Log de auditoria (RF-06) — só leitura, zero migration**: `AuditLog` já
+  era escrito desde RF-19/RF-25 (`recordAuditLog`) e a RLS
+  (`audit_logs_admin_select`) já existia desde a migration `rls_policies`
+  da Fatia 1 — o dado só estava inacessível por falta de endpoint.
+  `modules/audit-logs/` é o primeiro módulo do projeto **sem nenhuma rota
+  de escrita própria** (toda gravação continua vindo de dentro do
+  `withRls` de quem dispara a ação administrativa, nunca deste módulo).
+  `action`/`entityType` são `String` livre no Prisma (não enum) — o
+  filtro (`GET /audit-logs?action=X&entityType=Y`) é igualdade simples,
+  sem whitelist server-side (diferente do `VALID_REPORT_STATUSES` de
+  `reports.controller.ts`, que valida contra um enum Prisma de verdade);
+  a única fonte de valores válidos é o dropdown do frontend. Include de
+  `actor` (`select: { id, username, profile: { displayName } }`) não
+  esbarra no gotcha de relação obrigatória + RLS já documentado acima —
+  `actorUserId` só aponta pra usuários `ADMIN` (só ação administrativa
+  gera log), e `users_admin_visible_to_authenticated` já libera qualquer
+  sessão autenticada a ver linhas com `role = 'ADMIN'`.
 
 ## Padrões do frontend (apps/web)
 
@@ -1103,6 +1120,31 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   aparece e linha esmaece → Restaurar → chip some. Dados de teste
   (`rf16p1`/`rf16p2`, renomeados durante os testes) removidos do banco
   ao final via `psql` direto.
+- **Página `/admin/auditoria` (RF-06)** — primeira tela do projeto com
+  DOIS filtros independentes (ação × entidade) em vez do padrão de um só
+  filtro por abas de status (`AdminReportsPage`/`AdminRedemptionsPage`):
+  dois `<select>` simples em vez de pills, porque são dimensões
+  ortogonais (combinam com AND) e listar todo par ação×entidade como pill
+  não escalaria. Sem nenhuma ação na tabela — é a primeira tela
+  puramente somente-leitura do admin (nenhum botão/mutation). `action`/
+  `entityType` sendo string livre na API (ver bullet do backend) levou a
+  `auditLogActionLabel`/`auditLogEntityTypeLabel` em `utils/format.ts`
+  serem **funções** com fallback pro valor bruto, não `Record<Enum,
+  string>` direto como os outros mapas do arquivo — uma ação nova de
+  fatia futura aparece na tabela sem tradução em vez de quebrar. Coluna
+  "Detalhes" mostra `metadata.reason` quando presente (todo `recordAuditLog`
+  do projeto até hoje inclui `reason`) ou o JSON bruto como fallback —
+  sem parser por tipo de ação, o `metadata` varia de shape
+  (`MATCH_RESULT_CORRECTED` inclui placar antes/depois,
+  `USER_EDITED_BY_ADMIN` inclui `changes`) e não vale a pena uma tela por
+  ação nesta fatia. **Testado fim a fim via Playwright** (extensão
+  Chrome não conectada nesta sessão, mesmo gotcha das fatias anteriores
+  — script Node ad-hoc em `node_modules` próprio no scratchpad, não no
+  repo): login admin, navegação via clique em "Admin Auditoria" no nav
+  (não `page.goto()`, mesmo motivo já documentado), listagem populada
+  com o histórico real de todas as fatias anteriores (RF-19/RF-25/RF-16),
+  filtro por `entityType=MATCH` reduzindo corretamente a lista às duas
+  correções de partida já registradas antes desta fatia.
 
 ## Banco de dados local (Docker Compose)
 
