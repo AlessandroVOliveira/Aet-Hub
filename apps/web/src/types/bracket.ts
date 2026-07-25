@@ -61,6 +61,11 @@ export interface RecordMatchResultPayload {
   scoreB?: number;
 }
 
+// RF-19
+export interface CorrectMatchResultPayload extends RecordMatchResultPayload {
+  reason: string;
+}
+
 // Resposta sem includes (registrationA/B/winner ausentes) — nunca usar pra
 // atualizar a UI diretamente, só pra satisfazer o tipo de retorno da
 // mutation; a UI sempre confia no refetch de useBracket.

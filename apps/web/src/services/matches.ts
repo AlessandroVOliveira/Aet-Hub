@@ -3,6 +3,7 @@ import type {
   GetBracketResponse,
   RecordMatchResultPayload,
   RecordMatchResultResponse,
+  CorrectMatchResultPayload,
 } from '@/types/bracket';
 
 export function getBracket(token: string, tournamentId: string): Promise<GetBracketResponse> {
@@ -15,4 +16,12 @@ export function recordMatchResult(
   payload: RecordMatchResultPayload,
 ): Promise<RecordMatchResultResponse> {
   return apiRequest(`/matches/${matchId}/result`, { method: 'POST', token, body: payload });
+}
+
+export function correctMatchResult(
+  token: string,
+  matchId: string,
+  payload: CorrectMatchResultPayload,
+): Promise<RecordMatchResultResponse> {
+  return apiRequest(`/matches/${matchId}/result`, { method: 'PATCH', token, body: payload });
 }
