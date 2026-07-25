@@ -821,6 +821,88 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   removidos via `psql` direto (`docker exec aet-hub-postgres-1 psql`,
   usuários com follows/notifications sem FK cascade — apagados na ordem
   notifications → follows → users).
+- **Sistema de níveis (XP) e conquistas (RF-29)** — três tabelas novas
+  (`Achievement` catálogo admin-managed; `UserAchievement` evento de
+  desbloqueio, sem relation pra `User` pelo mesmo motivo de `Follow`/
+  `Report`; `XpTransaction`, ledger append-only que espelha
+  `PointsTransaction` de propósito). **XP é moeda de progressão
+  totalmente separada de pontos/moedas** — valores fixos
+  (`modules/xp/xp-constants.ts`: `MATCH_WIN=50`, `MATCH_LOSS=10`,
+  `PARTICIPATION=25`, `PLACEMENT` por tier `{1:200,2:120,3:80}`),
+  independentes de `pointsPerWin`/`pointsPerLoss`/`bonusPoints`
+  configuráveis por torneio — decisão tomada com o usuário via
+  `AskUserQuestion` (alternativa seria XP = mesmo valor dos pontos).
+  **Nível nunca é armazenado**, sempre derivado de `SUM(XpTransaction
+  .amount)` via `xp-level-calculator.ts#levelFromXp` (fórmula flat,
+  `XP_PER_LEVEL=500`: `level = floor(totalXp/500)+1`) — mesmo princípio
+  de saldo derivado já usado em `PointsTransaction`.
+  **Avaliação de conquistas só no fechamento do torneio**
+  (`completeTournament`, mesmo hook onde `buildPointsTransactionEntries`
+  já roda), catálogo deliberadamente pequeno nesta fatia — só 3 códigos
+  hardcoded (`FIRST_TOURNAMENT`/`FIRST_WIN`/`CHAMPION`) que o
+  `achievement-evaluator.ts` (pura, sem acesso a banco, testável como
+  `placement-calculator.ts`) reconhece; `Achievement.code` é a chave de
+  lookup, imutável após criação — critério de desbloqueio é código, não
+  dado, então o admin só edita apresentação (nome/descrição/raridade/
+  ativo). **Não retroativo**: torneios concluídos antes desta fatia não
+  geram XP/conquista. `FIRST_WIN`/`FIRST_TOURNAMENT` usam contagem
+  "prévia" (antes desta finalização) — `xp.repository
+  .countPriorMatchWinsByUserIds` funciona só por ser chamado ANTES do
+  insert das entries desta finalização; já
+  `tournaments.repository.countPriorCompletedTournamentsByUserIds`
+  precisa excluir explicitamente o próprio torneio sendo encerrado
+  (`tournamentId: { not: id }`), porque `applyFinalPlacements` já rodou
+  antes e teria inflado a contagem em 1 pra cada participante.
+  **RLS catalog-style totalmente aberta** nas três tabelas (`SELECT
+  USING (true)`, mesmo padrão de `games`/`store_items`/`communities`) —
+  decisão de produto desta fatia: nível/XP/conquistas são "exibidos no
+  perfil público" de qualquer player, não só o próprio. `user_achievements`/
+  `xp_transactions` só têm `INSERT` admin (nunca UPDATE/DELETE, imutável)
+  — e diferente de `follows`/notificações (actor é um player comum, por
+  isso função `SECURITY DEFINER`), aqui o actor de `completeTournament`
+  já É o admin, então uma policy direta `WITH CHECK (role = 'ADMIN')`
+  basta, sem precisar de função definer pra essas escritas.
+  **Perfil público de terceiros** (`GET /users/:id/public`, gap que RF-41
+  tinha deixado de propósito fora de escopo) precisou de DUAS funções
+  `SECURITY DEFINER` novas (migration própria
+  `public_profile_read_functions`, mesmo formato de
+  `points_leaderboard_function`): `app_public_profile_snapshot(target_user_id)`
+  (mesmo filtro de inclusão de `app_points_leaderboard`: `role='PLAYER'
+  AND is_active AND deleted_at IS NULL` — banido/excluído vira 404, nunca
+  vaza email/passwordHash/CEP) pra atravessar a RLS de `users`/`profiles`
+  (self/ADMIN/colega-de-torneio, não cobre "terceiro qualquer"), e
+  `app_follow_counts(target_user_id)` (só contagens, já que
+  `follows_self_select` bloqueia um terceiro de ver o par de outra
+  pessoa). Dois `NotificationType` novos (`ACHIEVEMENT_UNLOCKED`/
+  `LEVEL_UP`, PRD pede "feedback visual ao... subir de nível") seguindo o
+  gotcha de enum já documentado (`ALTER TYPE ADD VALUE` + `CREATE OR
+  REPLACE FUNCTION` em migrations separadas): `ACHIEVEMENT_UNLOCKED` com
+  `EXISTS` contra a `user_achievements` recém-criada (`refId` = id da
+  linha, já que `createMany` não devolve id — por isso o insert de
+  unlock é `create` em loop, não `createMany`, volume pequeno o bastante
+  pra não importar); `LEVEL_UP` reaproveita o predicado de
+  `TOURNAMENT_COMPLETED` (`refId` = id do torneio). Seed de 3 conquistas
+  via `seedPrisma.achievement.upsert` (mesmo padrão de `games`).
+  **Decisões tomadas com o usuário via `AskUserQuestion`** antes de
+  planejar: também construir o perfil público de terceiros nesta fatia
+  (não só `/perfil`); XP fixo por evento (não atrelado a pontos); infra
+  genérica + poucas conquistas de exemplo (não um catálogo grande com
+  gatilhos fora de torneio); ranking (`/ranking`) NÃO ganha coluna de
+  nível (mantém `app_points_leaderboard()` estreito).
+  **Testado fim a fim via script Node ad-hoc + `claude-in-chrome`**: 4
+  players reais, torneio completo até o encerramento — XP/conquistas
+  corretos por posição (campeão com as 3, semifinalistas só
+  `FIRST_TOURNAMENT`), um segundo cenário com 2 torneios extras
+  confirmando `LEVEL_UP` e as 3 notificações `ACHIEVEMENT_UNLOCKED` reais
+  (via `curl`/API direta); perfil próprio (`/perfil`) e perfil público de
+  outro player a partir do link novo em `/ranking` renderizando
+  corretamente (barra de XP segmentada, lista de conquistas com raridade,
+  botão seguir), admin CRUD de conquistas (`/admin/conquistas`) criando/
+  editando/desativando. Dados de teste (torneios `Torneio RF29*` +
+  usuários `rf29p1..4`) removidos via `psql` direto (ordem: notifications
+  → points_transactions → xp_transactions → user_achievements → matches
+  → bracket_slots → checkins → registrations → tournaments → follows →
+  users).
 
 ## Padrões do frontend (apps/web)
 
@@ -1261,6 +1343,34 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   (`NotificationsPage.tsx`, `Record<NotificationType, ...>`) precisou da
   chave nova `FOLLOWED` (`UserPlus`) só pra manter a exaustividade do
   tipo — sem isso o TypeScript quebra a build.
+- **Nível/XP/conquistas + perfil público de terceiros (RF-29)**: primeira
+  rota do frontend pra ver outro player além de `/perfil` —
+  `PublicProfilePage.tsx` nova (`/perfil/:userId`), com guard
+  `<Navigate to="/perfil" replace>` quando `userId === user.id` (evita
+  visão duplicada de si mesmo). `RankingPage.tsx` ganhou o primeiro link
+  de uma linha pra um perfil (nome do player agora é `<Link>`, antes era
+  texto plano) — decisão consciente de NÃO adicionar coluna de nível na
+  tabela (levaria a estender `app_points_leaderboard()`, que é
+  deliberadamente estreito), nível fica só nas telas de perfil.
+  `LevelProgressBar.tsx`/`AchievementsList.tsx` (`components/`, não
+  `components/ui/` — são componentes de domínio, não átomos genéricos)
+  construídos uma vez e reaproveitados por `ProfilePage.tsx` (próprio) e
+  `PublicProfilePage.tsx` (terceiro) — visual espelha
+  `src-lovable/src/routes/profile.tsx` (barra segmentada de 10 blocos,
+  `Math.round((xpIntoLevel/xpForNextLevel)*10)` blocos preenchidos;
+  conquista com borda/fundo por raridade), trocando o glifo `★` cru do
+  mock por `Star` de `lucide-react` (convenção do projeto: sempre
+  `lucide-react`, nunca glifo literal). `AchievementForm.tsx` segue o
+  padrão `react-hook-form` de `GameForm.tsx`, com um detalhe novo: campo
+  `code` **disabled** em modo edição (só habilitado em criação) — é a
+  primeira vez que um form do projeto trava um campo por modo em vez de
+  omiti-lo, porque `code` precisa aparecer (documentando o valor
+  imutável) mas nunca ser editável. `AdminAchievementsPage.tsx`/
+  `AdminAchievementFormPage.tsx` espelham `AdminGamesPage.tsx`/
+  `AdminGameFormPage.tsx` 1:1 (sem `GET /achievements/:id`, reaproveita
+  `useAdminAchievements()` já cacheada + `.find(id)`, mesmo truque). Novo
+  item `Admin Conquistas` em `NAV_ITEMS` (`AppLayout.tsx`), mesmo padrão
+  dos outros itens admin.
 
 ## Banco de dados local (Docker Compose)
 
