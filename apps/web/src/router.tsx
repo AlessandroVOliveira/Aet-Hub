@@ -33,6 +33,7 @@ import { AdminReportsPage } from '@/pages/AdminReportsPage';
 import { AdminGamesPage } from '@/pages/AdminGamesPage';
 import { AdminGameFormPage } from '@/pages/AdminGameFormPage';
 import { AdminUsersPage } from '@/pages/AdminUsersPage';
+import { AdminUserEditPage } from '@/pages/AdminUserEditPage';
 
 export const router = createBrowserRouter([
   {
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
               { path: '/admin/jogos/novo', element: <AdminGameFormPage /> },
               { path: '/admin/jogos/:id/editar', element: <AdminGameFormPage /> },
               { path: '/admin/usuarios', element: <AdminUsersPage /> },
+              { path: '/admin/usuarios/:id/editar', element: <AdminUserEditPage /> },
             ],
           },
         ],

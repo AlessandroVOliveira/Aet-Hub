@@ -137,3 +137,10 @@ export function mutedStatusChip(isMuted: boolean): {
 } {
   return isMuted ? { label: 'Silenciado', tone: 'muted' } : { label: 'Normal', tone: 'accent' };
 }
+
+// RF-16 — só renderiza um chip quando o usuário está excluído (soft
+// delete); null significa "não mostrar nada", diferente de
+// activeStatusChip/mutedStatusChip que sempre têm os dois estados.
+export function deletedStatusChip(deletedAt: string | null): { label: string; tone: 'live' } | null {
+  return deletedAt ? { label: 'Excluído', tone: 'live' } : null;
+}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import { useModerateUser } from '@/hooks/useAdminUserMutations';
-import { activeStatusChip, formatDate, mutedStatusChip } from '@/utils/format';
+import { activeStatusChip, deletedStatusChip, formatDate, mutedStatusChip } from '@/utils/format';
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
@@ -58,6 +59,25 @@ export function AdminUsersPage() {
     );
   }
 
+  function handleToggleDeleted(user: AdminUser) {
+    const next = !user.deletedAt;
+    const label = next ? 'excluir' : 'restaurar';
+    if (!window.confirm(`Confirmar: ${label} "${user.username}"?`)) return;
+    const reason = promptReason();
+    if (!reason) return;
+    setActionError(null);
+    moderateUser.mutate(
+      { id: user.id, payload: { deleted: next, reason } },
+      {
+        onError: (mutationError) => {
+          setActionError(
+            mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado',
+          );
+        },
+      },
+    );
+  }
+
   return (
     <div>
       <PageHeader eyebrow="STAFF_ONLY" title="USUÁRIOS" accent="ADMIN" />
@@ -92,52 +112,74 @@ export function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className={`border-b border-silver/5 ${!user.isActive ? 'opacity-50' : ''}`}
-                  >
-                    <td className="px-4 py-3 font-display italic uppercase">
-                      {user.username}
-                      {user.profile?.displayName && (
-                        <span className="block font-mono text-[10px] normal-case not-italic text-silver-muted">
-                          {user.profile.displayName}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-silver-muted">{user.email}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{user.role}</td>
-                    <td className="px-4 py-3">
-                      <StatusChip {...activeStatusChip(user.isActive)} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusChip {...mutedStatusChip(user.isMuted)} />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-silver-muted whitespace-nowrap">
-                      {formatDate(user.createdAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2 justify-end">
-                        <button
-                          type="button"
-                          disabled={moderateUser.isPending}
-                          onClick={() => handleToggleActive(user)}
-                          className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
-                        >
-                          {user.isActive ? 'Banir' : 'Reativar'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={moderateUser.isPending}
-                          onClick={() => handleToggleMuted(user)}
-                          className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
-                        >
-                          {user.isMuted ? 'Dessilenciar' : 'Silenciar'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {data.users.map((user) => {
+                  const deletedChip = deletedStatusChip(user.deletedAt);
+                  return (
+                    <tr
+                      key={user.id}
+                      className={`border-b border-silver/5 ${
+                        !user.isActive || user.deletedAt ? 'opacity-50' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-display italic uppercase">
+                        {user.username}
+                        {user.profile?.displayName && (
+                          <span className="block font-mono text-[10px] normal-case not-italic text-silver-muted">
+                            {user.profile.displayName}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-silver-muted">{user.email}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{user.role}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          <StatusChip {...activeStatusChip(user.isActive)} />
+                          {deletedChip && <StatusChip {...deletedChip} />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusChip {...mutedStatusChip(user.isMuted)} />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-silver-muted whitespace-nowrap">
+                        {formatDate(user.createdAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          <Link
+                            to={`/admin/usuarios/${user.id}/editar`}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase"
+                          >
+                            Editar
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={moderateUser.isPending}
+                            onClick={() => handleToggleActive(user)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            {user.isActive ? 'Banir' : 'Reativar'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={moderateUser.isPending}
+                            onClick={() => handleToggleMuted(user)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            {user.isMuted ? 'Dessilenciar' : 'Silenciar'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={moderateUser.isPending}
+                            onClick={() => handleToggleDeleted(user)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            {user.deletedAt ? 'Restaurar' : 'Excluir'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
