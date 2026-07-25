@@ -1171,6 +1171,48 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   com o histórico real de todas as fatias anteriores (RF-19/RF-25/RF-16),
   filtro por `entityType=MATCH` reduzindo corretamente a lista às duas
   correções de partida já registradas antes desta fatia.
+- **Duplicar torneio (RF-17) — fatia 100% frontend, zero mudança de
+  backend**: `POST /tournaments` já aceitava o payload completo de criação
+  e `GET /tournaments/:id` já retornava sponsors/placementRewards
+  completos — "duplicar" é só ler o torneio de origem e reenviar como um
+  `POST` novo, sem nenhum conceito de "template" persistido à parte.
+  Disparado por um `<Link to={`/admin/torneios/novo?duplicarDe=${id}`}>`
+  novo em `AdminTournamentsPage.tsx` (ao lado de "Editar", sem gate de
+  status — qualquer torneio serve de origem, diferente de "Excluir" que só
+  aparece em `DRAFT`). **Query param na rota de criação existente, não uma
+  rota `:id/duplicar` dedicada**: duplicar é semanticamente uma criação
+  (mesmo `mode="create"`, mesmo `POST`), só com fonte de pré-preenchimento
+  diferente — um segundo `:id` com significado próprio colidiria com o
+  `:id` já usado por `/admin/torneios/:id/editar` (sempre "torneio-alvo do
+  CRUD"). `AdminTournamentFormPage.tsx` ganhou um terceiro ramo (além de
+  criar/editar): lê `duplicarDe` via `useSearchParams`, busca o torneio de
+  origem com o mesmo `useAdminTournament` já usado pela edição, e só monta
+  `<TournamentForm>` depois que a origem (e os jogos) carregaram — mesmo
+  princípio anti-bug de `<select>` vazio já documentado acima. Em
+  `TournamentForm.tsx`, nova prop `sourceTournament?: TournamentDetail`
+  (só usada com `mode === 'create'`) alimenta `toDuplicateDefaults`, função
+  irmã de `toFormDefaults`/`emptyDefaults`: copia todos os campos
+  escalares e sponsors/placementRewards (via os mesmos helpers
+  `mapSponsorsForForm`/`mapPlacementRewardsForForm` extraídos de
+  `toFormDefaults`, sem duplicar a lógica de descartar `id`), mas **nome
+  sufixado** (`"${nome} (cópia)"`, editável) e **as 4 datas nascem
+  vazias** — datas do torneio original quase certamente estão no passado,
+  copiar cegamente não faz sentido de produto e forçaria o admin a mudar
+  todas de qualquer forma. `status` nunca é copiado (sempre `DRAFT`, nem
+  é enviado no create). `onSubmit`/`toSubmitFields` não mudam — o mesmo
+  `CreateTournamentPayload` monta igual venha de `emptyDefaults()` ou
+  `toDuplicateDefaults()`. Nada em `services/admin-tournaments.ts` muda:
+  a conversão "origem → valores de formulário" é apresentação (mesmo
+  lugar de `toFormDefaults`), diferente de `toUpdatePayload` ali (que
+  converte pra payload de escrita da API). Testado fim a fim via
+  `claude-in-chrome` real (não Playwright ad-hoc desta vez): torneio de
+  teste com 1 sponsor + 1 placement reward, duplicado com sucesso — nome
+  sufixado, jogo já selecionado no `<select>` (não em branco), datas
+  vazias com erro "Campo obrigatório" ao tentar submeter sem preenchê-las,
+  sponsors/placementRewards idênticos após preencher datas e salvar,
+  torneio original intacto, id novo e distinto. Dados de teste removidos
+  via `DELETE /tournaments/:id` direto pela API (ambos nasceram `DRAFT`,
+  dispensou `psql`).
 
 ## Banco de dados local (Docker Compose)
 
