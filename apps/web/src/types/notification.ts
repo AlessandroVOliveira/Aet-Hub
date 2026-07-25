@@ -3,7 +3,8 @@ export type NotificationType =
   | 'DIRECT_MESSAGE'
   | 'REDEMPTION_UPDATED'
   | 'TOURNAMENT_COMPLETED'
-  | 'POST_COMMENT';
+  | 'POST_COMMENT'
+  | 'FOLLOWED';
 
 // Nome AppNotification de propósito: `Notification` colide silenciosamente
 // com o tipo DOM global (window.Notification) — usar esse nome causaria

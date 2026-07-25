@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, UserCheck, UserPlus } from 'lucide-react';
 import { useRanking } from '@/hooks/useRanking';
 import { useAuth } from '@/hooks/useAuth';
+import { useFollowing, useFollowMutation, useUnfollowMutation } from '@/hooks/useFollows';
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
@@ -9,6 +11,14 @@ import { Banner } from '@/components/ui/Banner';
 export function RankingPage() {
   const { data, isLoading, isError, error } = useRanking();
   const { user } = useAuth();
+
+  const followingQuery = useFollowing();
+  const followMutation = useFollowMutation();
+  const unfollowMutation = useUnfollowMutation();
+  const followingIds = useMemo(
+    () => new Set(followingQuery.data?.following.map((follow) => follow.followingId) ?? []),
+    [followingQuery.data],
+  );
 
   return (
     <div>
@@ -35,18 +45,21 @@ export function RankingPage() {
         {data && data.entries.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
             <div className="bg-navy-light ring-1 ring-silver/10">
-              <div className="grid grid-cols-[3rem_1fr_6rem_2.5rem] px-4 py-2 border-b border-silver/10 font-mono text-[10px] uppercase text-silver-muted">
+              <div className="grid grid-cols-[3rem_1fr_6rem_2.5rem_2.5rem] px-4 py-2 border-b border-silver/10 font-mono text-[10px] uppercase text-silver-muted">
                 <span>#</span>
                 <span>Player</span>
                 <span className="text-right">Pontos</span>
                 <span />
+                <span />
               </div>
               {data.entries.map((entry) => {
                 const isMe = entry.userId === user?.id;
+                const isFollowing = followingIds.has(entry.userId);
+                const followToggle = isFollowing ? unfollowMutation : followMutation;
                 return (
                   <div
                     key={entry.userId}
-                    className={`grid grid-cols-[3rem_1fr_6rem_2.5rem] items-center px-4 py-3 border-b border-silver/5 text-sm ${
+                    className={`grid grid-cols-[3rem_1fr_6rem_2.5rem_2.5rem] items-center px-4 py-3 border-b border-silver/5 text-sm ${
                       isMe ? 'bg-ember/10' : ''
                     }`}
                   >
@@ -58,6 +71,29 @@ export function RankingPage() {
                     <span className="text-right font-mono text-ember">
                       {entry.points.toLocaleString('pt-BR')}
                     </span>
+                    {isMe ? (
+                      <span />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => followToggle.mutate(entry.userId)}
+                        disabled={followToggle.isPending}
+                        aria-label={
+                          isFollowing
+                            ? `Deixar de seguir ${entry.displayName ?? entry.username}`
+                            : `Seguir ${entry.displayName ?? entry.username}`
+                        }
+                        className={`justify-self-end disabled:opacity-50 ${
+                          isFollowing ? 'text-ember' : 'text-silver-muted hover:text-ember'
+                        }`}
+                      >
+                        {isFollowing ? (
+                          <UserCheck className="size-4" />
+                        ) : (
+                          <UserPlus className="size-4" />
+                        )}
+                      </button>
+                    )}
                     {isMe ? (
                       <span />
                     ) : (
