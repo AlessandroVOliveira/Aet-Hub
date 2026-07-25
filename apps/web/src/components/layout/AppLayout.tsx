@@ -48,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin/jogos', label: 'Admin Jogos', icon: Shield, adminOnly: true },
   { to: '/admin/usuarios', label: 'Admin Usuários', icon: Shield, adminOnly: true },
   { to: '/admin/auditoria', label: 'Admin Auditoria', icon: Shield, adminOnly: true },
+  { to: '/admin/conquistas', label: 'Admin Conquistas', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout() {
@@ -171,7 +172,9 @@ function NavLink({ item, badge }: { item: NavItem; badge?: number }) {
       >
         <Icon className="size-4" />
         <span className="flex-1">{item.label}</span>
-        <span className="text-[9px] normal-case tracking-normal text-silver-muted/60">em breve</span>
+        <span className="text-[9px] normal-case tracking-normal text-silver-muted/60">
+          em breve
+        </span>
       </span>
     );
   }
@@ -187,7 +190,9 @@ function NavLink({ item, badge }: { item: NavItem; badge?: number }) {
     >
       <Icon className="size-4" />
       <span className="flex-1">{item.label}</span>
-      {!!badge && <span className="bg-ember text-white text-[10px] px-1.5 rounded font-mono">{badge}</span>}
+      {!!badge && (
+        <span className="bg-ember text-white text-[10px] px-1.5 rounded font-mono">{badge}</span>
+      )}
     </Link>
   );
 }
@@ -214,7 +219,9 @@ function UserBlock({ onLogout }: { onLogout: () => void }) {
           {user.displayName[0]?.toUpperCase() ?? user.username[0]?.toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-sm truncate italic">{user.displayName || user.username}</p>
+          <p className="font-display text-sm truncate italic">
+            {user.displayName || user.username}
+          </p>
           <p className="font-mono text-[10px] text-silver-muted">{data?.balance ?? 0} PTS</p>
         </div>
       </Link>

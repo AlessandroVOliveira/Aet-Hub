@@ -65,7 +65,16 @@ export function RankingPage() {
                   >
                     <span className="font-display italic text-lg">{entry.position}</span>
                     <span className="font-mono truncate">
-                      {entry.displayName ?? entry.username}{' '}
+                      {isMe ? (
+                        (entry.displayName ?? entry.username)
+                      ) : (
+                        <Link
+                          to={`/perfil/${entry.userId}`}
+                          className="hover:text-ember hover:underline"
+                        >
+                          {entry.displayName ?? entry.username}
+                        </Link>
+                      )}{' '}
                       {isMe && <span className="text-ember text-[10px]">(você)</span>}
                     </span>
                     <span className="text-right font-mono text-ember">
@@ -116,9 +125,7 @@ export function RankingPage() {
                 <p className="font-mono text-[10px] text-ember uppercase mb-1">SUA POSIÇÃO</p>
                 {data.me ? (
                   <>
-                    <p className="font-display text-5xl italic leading-none">
-                      #{data.me.position}
-                    </p>
+                    <p className="font-display text-5xl italic leading-none">#{data.me.position}</p>
                     <p className="font-mono text-xs text-silver-muted mt-2">
                       {data.me.points.toLocaleString('pt-BR')} pts · entre {data.totalPlayers}{' '}
                       players

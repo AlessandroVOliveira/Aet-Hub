@@ -1,11 +1,14 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyHistory } from '@/hooks/useMyHistory';
+import { useMyXp } from '@/hooks/useMyXp';
 import { useFollowers, useFollowing, useUnfollowMutation } from '@/hooks/useFollows';
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { LevelProgressBar } from '@/components/LevelProgressBar';
+import { AchievementsList } from '@/components/AchievementsList';
 import {
   formatDate,
   matchResultLabels,
@@ -21,6 +24,7 @@ interface LocationState {
 export function ProfilePage() {
   const profileQuery = useMyProfile();
   const historyQuery = useMyHistory();
+  const xpQuery = useMyXp();
   const followingQuery = useFollowing();
   const followersQuery = useFollowers();
   const unfollowMutation = useUnfollowMutation();
@@ -30,7 +34,8 @@ export function ProfilePage() {
   const profile = profileQuery.data?.profile;
 
   const registrations = [...(historyQuery.data?.registrations ?? [])].sort(
-    (a, b) => new Date(b.tournament.eventStartAt).getTime() - new Date(a.tournament.eventStartAt).getTime(),
+    (a, b) =>
+      new Date(b.tournament.eventStartAt).getTime() - new Date(a.tournament.eventStartAt).getTime(),
   );
   const matches = [...(historyQuery.data?.matches ?? [])].sort(
     (a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime(),
@@ -41,6 +46,7 @@ export function ProfilePage() {
       <PageHeader
         eyebrow="MEU_PERFIL"
         title={profile?.displayName ?? 'PERFIL'}
+        accent={xpQuery.data ? `LVL ${xpQuery.data.progress.level}` : undefined}
         description={profile?.bio ?? undefined}
         actions={
           <Link
@@ -55,17 +61,23 @@ export function ProfilePage() {
       <div className="p-4 md:p-8 space-y-8">
         {state?.updated && <Banner variant="success">Perfil atualizado.</Banner>}
 
-        {(profileQuery.isError || historyQuery.isError || followingQuery.isError || followersQuery.isError) && (
+        {(profileQuery.isError ||
+          historyQuery.isError ||
+          xpQuery.isError ||
+          followingQuery.isError ||
+          followersQuery.isError) && (
           <Banner variant="error">
             {profileQuery.error instanceof ApiError
               ? profileQuery.error.message
               : historyQuery.error instanceof ApiError
                 ? historyQuery.error.message
-                : followingQuery.error instanceof ApiError
-                  ? followingQuery.error.message
-                  : followersQuery.error instanceof ApiError
-                    ? followersQuery.error.message
-                    : 'Erro inesperado'}
+                : xpQuery.error instanceof ApiError
+                  ? xpQuery.error.message
+                  : followingQuery.error instanceof ApiError
+                    ? followingQuery.error.message
+                    : followersQuery.error instanceof ApiError
+                      ? followersQuery.error.message
+                      : 'Erro inesperado'}
           </Banner>
         )}
 
@@ -86,11 +98,15 @@ export function ProfilePage() {
             )}
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2 font-mono text-xs">
               <div>
-                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">Jogo favorito</dt>
+                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
+                  Jogo favorito
+                </dt>
                 <dd className="mt-1">{profile.favoriteGame?.name ?? '—'}</dd>
               </div>
               <div>
-                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">Personagem favorito</dt>
+                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
+                  Personagem favorito
+                </dt>
                 <dd className="mt-1">{profile.favoriteCharacter ?? '—'}</dd>
               </div>
               <div>
@@ -99,6 +115,20 @@ export function ProfilePage() {
               </div>
             </dl>
           </div>
+        )}
+
+        {xpQuery.data && (
+          <section>
+            <h2 className="font-mono text-[10px] uppercase tracking-widest text-silver-muted mb-3">
+              Nível &amp; conquistas
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="bg-navy-light ring-1 ring-silver/10 p-4">
+                <LevelProgressBar progress={xpQuery.data.progress} />
+              </div>
+              <AchievementsList achievements={xpQuery.data.achievements} />
+            </div>
+          </section>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -122,7 +152,9 @@ export function ProfilePage() {
               <div className="bg-navy-light ring-1 ring-silver/10 divide-y divide-silver/5">
                 {followingQuery.data.following.map((follow) => (
                   <div key={follow.id} className="p-4 flex items-center justify-between gap-3">
-                    <span className="font-mono text-sm truncate">{follow.followingDisplayName}</span>
+                    <span className="font-mono text-sm truncate">
+                      {follow.followingDisplayName}
+                    </span>
                     <button
                       type="button"
                       onClick={() => unfollowMutation.mutate(follow.followingId)}

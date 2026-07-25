@@ -4,7 +4,9 @@ export type NotificationType =
   | 'REDEMPTION_UPDATED'
   | 'TOURNAMENT_COMPLETED'
   | 'POST_COMMENT'
-  | 'FOLLOWED';
+  | 'FOLLOWED'
+  | 'ACHIEVEMENT_UNLOCKED'
+  | 'LEVEL_UP';
 
 // Nome AppNotification de propósito: `Notification` colide silenciosamente
 // com o tipo DOM global (window.Notification) — usar esse nome causaria

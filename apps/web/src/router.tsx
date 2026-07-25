@@ -11,6 +11,7 @@ import { BracketPage } from '@/pages/BracketPage';
 import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { ProfileEditPage } from '@/pages/ProfileEditPage';
+import { PublicProfilePage } from '@/pages/PublicProfilePage';
 import { RankingPage } from '@/pages/RankingPage';
 import { CommunitiesPage } from '@/pages/CommunitiesPage';
 import { CommunityPage } from '@/pages/CommunityPage';
@@ -35,6 +36,8 @@ import { AdminGameFormPage } from '@/pages/AdminGameFormPage';
 import { AdminUsersPage } from '@/pages/AdminUsersPage';
 import { AdminUserEditPage } from '@/pages/AdminUserEditPage';
 import { AdminAuditLogsPage } from '@/pages/AdminAuditLogsPage';
+import { AdminAchievementsPage } from '@/pages/AdminAchievementsPage';
+import { AdminAchievementFormPage } from '@/pages/AdminAchievementFormPage';
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +55,7 @@ export const router = createBrowserRouter([
           { path: '/minhas-inscricoes', element: <MyRegistrationsPage /> },
           { path: '/perfil', element: <ProfilePage /> },
           { path: '/perfil/editar', element: <ProfileEditPage /> },
+          { path: '/perfil/:userId', element: <PublicProfilePage /> },
           { path: '/loja', element: <StorePage /> },
           { path: '/loja/:id', element: <StoreItemDetailPage /> },
           { path: '/minhas-trocas', element: <MyRedemptionsPage /> },
@@ -84,6 +88,9 @@ export const router = createBrowserRouter([
               { path: '/admin/usuarios', element: <AdminUsersPage /> },
               { path: '/admin/usuarios/:id/editar', element: <AdminUserEditPage /> },
               { path: '/admin/auditoria', element: <AdminAuditLogsPage /> },
+              { path: '/admin/conquistas', element: <AdminAchievementsPage /> },
+              { path: '/admin/conquistas/novo', element: <AdminAchievementFormPage /> },
+              { path: '/admin/conquistas/:id/editar', element: <AdminAchievementFormPage /> },
             ],
           },
         ],
