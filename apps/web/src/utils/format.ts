@@ -4,6 +4,7 @@ import type { RegistrationStatus } from '@/types/registration';
 import type { RedemptionStatus } from '@/types/store';
 import type { ReportedContentType, ReportStatus } from '@/types/report';
 import type { BracketType, TiebreakerRule, TournamentStatus } from '@/types/tournament';
+import type { AuditLogAction, AuditLogEntityType } from '@/types/audit-log';
 
 export function formatCurrencyFromCents(cents: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
@@ -137,6 +138,45 @@ export function mutedStatusChip(isMuted: boolean): {
 } {
   return isMuted ? { label: 'Silenciado', tone: 'muted' } : { label: 'Normal', tone: 'accent' };
 }
+
+// RF-06: action/entityType do log de auditoria são string livre na API (não
+// enum Prisma), então os mapas cobrem só os valores conhecidos hoje — um
+// valor fora do mapa cai no próprio texto bruto (ver auditLogActionLabel/
+// auditLogEntityTypeLabel abaixo), nunca quebra a tela.
+const auditLogActionLabels: Record<AuditLogAction, string> = {
+  MATCH_RESULT_CORRECTED: 'Resultado de partida corrigido',
+  USER_BANNED: 'Usuário banido',
+  USER_UNBANNED: 'Usuário desbanido',
+  USER_MUTED: 'Usuário silenciado',
+  USER_UNMUTED: 'Usuário dessilenciado',
+  USER_DELETED: 'Usuário excluído',
+  USER_RESTORED: 'Usuário restaurado',
+  USER_EDITED_BY_ADMIN: 'Dados de usuário editados',
+  CONTENT_REMOVED: 'Conteúdo removido',
+};
+
+export function auditLogActionLabel(action: string): string {
+  return auditLogActionLabels[action as AuditLogAction] ?? action;
+}
+
+const auditLogEntityTypeLabels: Record<AuditLogEntityType, string> = {
+  MATCH: 'Partida',
+  USER: 'Usuário',
+  POST: 'Post',
+  COMMENT: 'Comentário',
+  CHAT_MESSAGE: 'Chat geral',
+  DIRECT_MESSAGE: 'Mensagem privada',
+  NEWS_COMMENT: 'Comentário de notícia',
+};
+
+export function auditLogEntityTypeLabel(entityType: string): string {
+  return auditLogEntityTypeLabels[entityType as AuditLogEntityType] ?? entityType;
+}
+
+export const AUDIT_LOG_ACTION_OPTIONS = Object.keys(auditLogActionLabels) as AuditLogAction[];
+export const AUDIT_LOG_ENTITY_TYPE_OPTIONS = Object.keys(
+  auditLogEntityTypeLabels,
+) as AuditLogEntityType[];
 
 // RF-16 — só renderiza um chip quando o usuário está excluído (soft
 // delete); null significa "não mostrar nada", diferente de
