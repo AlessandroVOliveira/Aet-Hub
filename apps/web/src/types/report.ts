@@ -1,5 +1,5 @@
 export type ReportedContentType = 'POST' | 'COMMENT' | 'CHAT_MESSAGE' | 'DIRECT_MESSAGE' | 'NEWS_COMMENT';
-export type ReportStatus = 'PENDING' | 'DISMISSED';
+export type ReportStatus = 'PENDING' | 'DISMISSED' | 'RESOLVED';
 
 export interface Report {
   id: string;

@@ -9,3 +9,27 @@ export function listAllReports(token: string, status?: ReportStatus): Promise<Li
 export function dismissReport(token: string, id: string): Promise<{ report: Report }> {
   return apiRequest(`/reports/${id}/dismiss`, { method: 'PATCH', token });
 }
+
+export function removeReportContent(
+  token: string,
+  id: string,
+  reason: string,
+): Promise<{ report: Report }> {
+  return apiRequest(`/reports/${id}/remove-content`, { method: 'PATCH', token, body: { reason } });
+}
+
+export function banReportAuthor(
+  token: string,
+  id: string,
+  reason: string,
+): Promise<{ report: Report }> {
+  return apiRequest(`/reports/${id}/ban-author`, { method: 'PATCH', token, body: { reason } });
+}
+
+export function muteReportAuthor(
+  token: string,
+  id: string,
+  reason: string,
+): Promise<{ report: Report }> {
+  return apiRequest(`/reports/${id}/mute-author`, { method: 'PATCH', token, body: { reason } });
+}

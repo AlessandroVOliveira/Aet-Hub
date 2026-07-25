@@ -120,9 +120,20 @@ export const reportedContentTypeLabels: Record<ReportedContentType, string> = {
 export const reportStatusLabels: Record<ReportStatus, string> = {
   PENDING: 'Pendente',
   DISMISSED: 'Dispensada',
+  RESOLVED: 'Resolvida',
 };
 
 export const reportStatusTone: Record<ReportStatus, 'accent' | 'live' | 'muted'> = {
   PENDING: 'live',
   DISMISSED: 'muted',
+  RESOLVED: 'accent',
 };
+
+// Mesmo racional de activeStatusChip acima — nome genérico pra qualquer
+// entidade com isMuted booleano (hoje só User, RF-25 Fatia B).
+export function mutedStatusChip(isMuted: boolean): {
+  label: string;
+  tone: 'accent' | 'muted';
+} {
+  return isMuted ? { label: 'Silenciado', tone: 'muted' } : { label: 'Normal', tone: 'accent' };
+}

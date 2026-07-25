@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useAdminReports } from '@/hooks/useAdminReports';
-import { useDismissReport } from '@/hooks/useAdminReportMutations';
+import {
+  useBanReportAuthor,
+  useDismissReport,
+  useMuteReportAuthor,
+  useRemoveReportContent,
+} from '@/hooks/useAdminReportMutations';
 import {
   formatDate,
   reportedContentTypeLabels,
@@ -17,7 +22,18 @@ const STATUS_FILTERS: { label: string; value: ReportStatus | 'ALL' }[] = [
   { label: 'Todas', value: 'ALL' },
   { label: 'Pendentes', value: 'PENDING' },
   { label: 'Dispensadas', value: 'DISMISSED' },
+  { label: 'Resolvidas', value: 'RESOLVED' },
 ];
+
+// Motivo via window.prompt: mesma família de diálogo nativo que
+// window.confirm já usada em toda ação de moderação do projeto — evita
+// componente novo/estado de "linha expandida" numa tabela densa.
+function promptReason(): string | null {
+  const reason = window.prompt('Motivo (mínimo 5 caracteres):');
+  if (reason === null) return null;
+  const trimmed = reason.trim();
+  return trimmed.length >= 5 ? trimmed : null;
+}
 
 export function AdminReportsPage() {
   const [statusFilter, setStatusFilter] = useState<ReportStatus | 'ALL'>('ALL');
@@ -25,7 +41,13 @@ export function AdminReportsPage() {
     statusFilter === 'ALL' ? undefined : statusFilter,
   );
   const dismissReport = useDismissReport();
+  const removeContent = useRemoveReportContent();
+  const banAuthor = useBanReportAuthor();
+  const muteAuthor = useMuteReportAuthor();
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const isActionPending =
+    dismissReport.isPending || removeContent.isPending || banAuthor.isPending || muteAuthor.isPending;
 
   function handleDismiss(report: Report) {
     if (!window.confirm('Dispensar esta denúncia? (sem violação encontrada)')) return;
@@ -35,6 +57,57 @@ export function AdminReportsPage() {
         setActionError(mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado');
       },
     });
+  }
+
+  function handleRemoveContent(report: Report) {
+    if (!window.confirm('Remover este conteúdo definitivamente?')) return;
+    const reason = promptReason();
+    if (!reason) return;
+    setActionError(null);
+    removeContent.mutate(
+      { id: report.id, reason },
+      {
+        onError: (mutationError) => {
+          setActionError(
+            mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado',
+          );
+        },
+      },
+    );
+  }
+
+  function handleBanAuthor(report: Report) {
+    if (!window.confirm(`Banir "${report.contentAuthorDisplayName}"?`)) return;
+    const reason = promptReason();
+    if (!reason) return;
+    setActionError(null);
+    banAuthor.mutate(
+      { id: report.id, reason },
+      {
+        onError: (mutationError) => {
+          setActionError(
+            mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado',
+          );
+        },
+      },
+    );
+  }
+
+  function handleMuteAuthor(report: Report) {
+    if (!window.confirm(`Silenciar "${report.contentAuthorDisplayName}"?`)) return;
+    const reason = promptReason();
+    if (!reason) return;
+    setActionError(null);
+    muteAuthor.mutate(
+      { id: report.id, reason },
+      {
+        onError: (mutationError) => {
+          setActionError(
+            mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado',
+          );
+        },
+      },
+    );
   }
 
   return (
@@ -117,14 +190,38 @@ export function AdminReportsPage() {
                     </td>
                     <td className="px-4 py-3">
                       {report.status === 'PENDING' && (
-                        <div className="flex justify-end">
+                        <div className="flex flex-wrap gap-2 justify-end">
                           <button
                             type="button"
-                            disabled={dismissReport.isPending}
+                            disabled={isActionPending}
                             onClick={() => handleDismiss(report)}
                             className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
                           >
                             Dispensar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isActionPending}
+                            onClick={() => handleRemoveContent(report)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            Remover conteúdo
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isActionPending}
+                            onClick={() => handleMuteAuthor(report)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            Silenciar autor
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isActionPending}
+                            onClick={() => handleBanAuthor(report)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            Banir autor
                           </button>
                         </div>
                       )}
