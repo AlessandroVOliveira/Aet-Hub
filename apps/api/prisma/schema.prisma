@@ -91,6 +91,20 @@ enum NotificationType {
   TOURNAMENT_COMPLETED
   POST_COMMENT
   FOLLOWED
+  ACHIEVEMENT_UNLOCKED
+  LEVEL_UP
+}
+
+enum AchievementRarity {
+  COMMON
+  RARE
+}
+
+enum XpTransactionType {
+  MATCH_WIN
+  MATCH_LOSS
+  PLACEMENT
+  PARTICIPATION
 }
 
 model User {
@@ -690,4 +704,59 @@ model Follow {
   @@unique([followerId, followingId])
   @@index([followingId])
   @@map("follows")
+}
+
+// Catálogo de conquistas (RF-29), admin-managed — mesmo padrão de Game/
+// StoreItem. `code` é a chave usada pelo avaliador hardcoded
+// (achievement-evaluator.ts), não um campo editável de critério de
+// desbloqueio — a lógica de quando desbloquear é código, não dado.
+model Achievement {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  name        String
+  description String
+  rarity      AchievementRarity @default(COMMON)
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  unlocks UserAchievement[]
+
+  @@map("achievements")
+}
+
+// userId sem relation pra User (mesmo motivo de Follow: RLS de users/
+// profiles não libera join cross-user fora de colega-de-torneio).
+// achievementId tem relation normal — achievements é catálogo público.
+// Só escrito dentro de completeTournament (actor sempre ADMIN), nunca
+// pelo próprio player — sem policy de UPDATE/DELETE, imutável.
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  achievementId String   @map("achievement_id")
+  tournamentId  String?  @map("tournament_id")
+  unlockedAt    DateTime @default(now()) @map("unlocked_at")
+
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+// Ledger append-only de XP (RF-29), espelha PointsTransaction de propósito
+// — mesmo padrão de acúmulo por evento discreto. Nível nunca é
+// armazenado, sempre derivado de SUM(amount) via xp-level-calculator.ts.
+model XpTransaction {
+  id           String            @id @default(cuid())
+  userId       String            @map("user_id")
+  type         XpTransactionType
+  amount       Int
+  tournamentId String?           @map("tournament_id")
+  matchId      String?           @map("match_id")
+  description  String
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("xp_transactions")
 }

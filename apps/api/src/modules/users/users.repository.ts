@@ -128,3 +128,66 @@ export function updateUserAccountFields(
 ) {
   return tx.user.update({ where: { id: userId }, data, select: adminUserSelect });
 }
+
+// RF-29 — perfil público de terceiros: a RLS de users/profiles só libera
+// self/ADMIN/colega-de-torneio, então um terceiro (ex.: a partir do
+// /ranking) precisa passar pela função SECURITY DEFINER
+// app_public_profile_snapshot (migration public_profile_read_functions) —
+// mesma técnica de app_dm_recipient_display_name, fronteira de exposição
+// estreita. Linha vazia = usuário não encontrado/banido/excluído (a
+// própria função já filtra isso), o service trata como 404.
+interface PublicProfileSnapshotRow {
+  username: string;
+  display_name: string;
+  favorite_game_name: string | null;
+  favorite_character: string | null;
+  theme: string | null;
+}
+
+export interface PublicProfileSnapshot {
+  username: string;
+  displayName: string;
+  favoriteGameName: string | null;
+  favoriteCharacter: string | null;
+  theme: string | null;
+}
+
+export async function findPublicProfileSnapshot(
+  tx: Prisma.TransactionClient,
+  targetUserId: string,
+): Promise<PublicProfileSnapshot | null> {
+  const rows = await tx.$queryRaw<PublicProfileSnapshotRow[]>`
+    SELECT * FROM app_public_profile_snapshot(${targetUserId})
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    username: row.username,
+    displayName: row.display_name,
+    favoriteGameName: row.favorite_game_name,
+    favoriteCharacter: row.favorite_character,
+    theme: row.theme,
+  };
+}
+
+// follows_self_select só libera linhas onde a sessão é uma das duas
+// partes — um terceiro nunca enxerga o par de outra pessoa nem pra
+// contar, daí a função SECURITY DEFINER app_follow_counts (contagem-só,
+// sem conteúdo de linha).
+export interface FollowCounts {
+  followersCount: number;
+  followingCount: number;
+}
+
+export async function findFollowCounts(
+  tx: Prisma.TransactionClient,
+  targetUserId: string,
+): Promise<FollowCounts> {
+  const [row] = await tx.$queryRaw<{ followers_count: bigint; following_count: bigint }[]>`
+    SELECT * FROM app_follow_counts(${targetUserId})
+  `;
+  return {
+    followersCount: Number(row?.followers_count ?? 0),
+    followingCount: Number(row?.following_count ?? 0),
+  };
+}

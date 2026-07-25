@@ -8,6 +8,14 @@ import * as matchesService from '../matches/matches.service.js';
 import * as notificationsRepository from '../notifications/notifications.repository.js';
 import { emitNewNotifications } from '../notifications/notifications.emitter.js';
 import * as gamesRepository from '../games/games.repository.js';
+import * as xpRepository from '../xp/xp.repository.js';
+import { buildXpTransactionEntries } from '../xp/xp-transaction-builder.js';
+import { levelFromXp } from '../xp/xp-level-calculator.js';
+import * as achievementsRepository from '../achievements/achievements.repository.js';
+import {
+  ACHIEVEMENT_CODES,
+  evaluateAchievementUnlocks,
+} from '../achievements/achievement-evaluator.js';
 import * as tournamentsRepository from './tournaments.repository.js';
 import type { CreateTournamentInput, UpdateTournamentInput } from './tournaments.schemas.js';
 
@@ -206,75 +214,176 @@ function buildPointsTransactionEntries(params: {
 }
 
 export async function completeTournament(actor: AccessTokenPayload, id: string) {
-  const { tournament: completed, finalStandings, notifications } = await withRls(
-    { userId: actor.id, role: actor.role },
-    async (tx) => {
-      const tournament = await tournamentsRepository.findTournamentById(tx, id);
-      if (!tournament) {
-        throw new AppError('Torneio não encontrado', 404);
-      }
-      if (tournament.status !== 'IN_PROGRESS') {
-        throw new AppError('Só é possível encerrar torneios em andamento', 409);
-      }
+  const {
+    tournament: completed,
+    finalStandings,
+    notifications,
+  } = await withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const tournament = await tournamentsRepository.findTournamentById(tx, id);
+    if (!tournament) {
+      throw new AppError('Torneio não encontrado', 404);
+    }
+    if (tournament.status !== 'IN_PROGRESS') {
+      throw new AppError('Só é possível encerrar torneios em andamento', 409);
+    }
 
-      const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(
-        tx,
-        id,
-        tournament.tiebreakerRule,
-      );
-      const registrations = await tournamentsRepository.findRegistrationUserIds(tx, id);
-      const userIdByRegistrationId = new Map(
-        registrations.map((registration) => [registration.id, registration.userId]),
-      );
+    const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(
+      tx,
+      id,
+      tournament.tiebreakerRule,
+    );
+    const registrations = await tournamentsRepository.findRegistrationUserIds(tx, id);
+    const userIdByRegistrationId = new Map(
+      registrations.map((registration) => [registration.id, registration.userId]),
+    );
 
-      await tournamentsRepository.applyFinalPlacements(tx, placements);
+    await tournamentsRepository.applyFinalPlacements(tx, placements);
 
-      const pointsEntries = buildPointsTransactionEntries({
-        tournament,
-        matchOutcomes,
-        placements,
-        userIdByRegistrationId,
-        createdByUserId: actor.id,
+    const pointsEntries = buildPointsTransactionEntries({
+      tournament,
+      matchOutcomes,
+      placements,
+      userIdByRegistrationId,
+      createdByUserId: actor.id,
+    });
+    if (pointsEntries.length > 0) {
+      await tournamentsRepository.createPointsTransactions(tx, pointsEntries);
+    }
+
+    // RF-29 (XP/nível/conquistas) — mesmo ponto de dados que os pontos
+    // acima, mas moeda de progressão totalmente separada (valores fixos,
+    // não pointsPerWin/pointsPerLoss/bonusPoints configuráveis).
+    const participantUserIds = placements.map(({ registrationId }) =>
+      userIdByRegistrationId.get(registrationId)!,
+    );
+
+    const [
+      priorMatchWinCountByUserId,
+      priorCompletedTournamentCountByUserId,
+      achievementRows,
+      xpTotalsBefore,
+    ] = await Promise.all([
+      xpRepository.countPriorMatchWinsByUserIds(tx, participantUserIds),
+      tournamentsRepository.countPriorCompletedTournamentsByUserIds(tx, participantUserIds, id),
+      achievementsRepository.findAchievementsByCodes(tx, [...ACHIEVEMENT_CODES]),
+      xpRepository.getXpTotalsByUserIds(tx, participantUserIds),
+    ]);
+    const achievementIdByCode = new Map(achievementRows.map((row) => [row.code, row.id]));
+    const achievementNameById = new Map(achievementRows.map((row) => [row.id, row.name]));
+    const alreadyUnlockedKeys = await achievementsRepository.findExistingUnlocks(
+      tx,
+      participantUserIds,
+      [...achievementIdByCode.values()],
+    );
+
+    const xpEntries = buildXpTransactionEntries({
+      tournament: { id: tournament.id, name: tournament.name },
+      matchOutcomes,
+      placements,
+      userIdByRegistrationId,
+    });
+    if (xpEntries.length > 0) {
+      await xpRepository.createXpTransactions(tx, xpEntries);
+    }
+
+    const unlocks = evaluateAchievementUnlocks({
+      tournamentId: id,
+      matchOutcomes,
+      placements,
+      userIdByRegistrationId,
+      priorMatchWinCountByUserId,
+      priorCompletedTournamentCountByUserId,
+      achievementIdByCode,
+      alreadyUnlockedKeys,
+    });
+
+    const achievementNotifications = [];
+    for (const unlock of unlocks) {
+      const createdUnlock = await achievementsRepository.createUserAchievement(tx, {
+        userId: unlock.userId,
+        achievementId: unlock.achievementId,
+        tournamentId: id,
       });
-      if (pointsEntries.length > 0) {
-        await tournamentsRepository.createPointsTransactions(tx, pointsEntries);
-      }
+      achievementNotifications.push(
+        await notificationsRepository.createNotification(tx, {
+          userId: unlock.userId,
+          type: 'ACHIEVEMENT_UNLOCKED',
+          title: 'Conquista desbloqueada',
+          body: `Você desbloqueou a conquista "${achievementNameById.get(unlock.achievementId) ?? ''}"`,
+          linkPath: '/perfil',
+          refId: createdUnlock.id,
+        }),
+      );
+    }
 
-      const updated = await tournamentsRepository.updateTournamentStatus(tx, id, 'COMPLETED');
-      const standings = await tournamentsRepository.findRegistrationsWithFinalPlacement(tx, id);
+    const xpGainedByUserId = new Map<string, number>();
+    for (const entry of xpEntries) {
+      xpGainedByUserId.set(entry.userId, (xpGainedByUserId.get(entry.userId) ?? 0) + entry.amount);
+    }
 
-      // Soma dos pontos ganhos NESTA finalização (vitórias/derrotas +
-      // bônus de colocação), por userId — só para compor o texto da
-      // notificação, não é o saldo total do usuário.
-      const pointsByUserId = new Map<string, number>();
-      for (const entry of pointsEntries) {
-        pointsByUserId.set(entry.userId, (pointsByUserId.get(entry.userId) ?? 0) + entry.amount);
-      }
-
-      const tournamentNotifications = [];
-      for (const { registrationId, placement } of placements) {
-        const userId = userIdByRegistrationId.get(registrationId)!;
-        const points = pointsByUserId.get(userId) ?? 0;
-        const body =
-          points > 0
-            ? `${tournament.name}: você terminou em ${placement}º lugar e ganhou ${points} pontos`
-            : `${tournament.name}: você terminou em ${placement}º lugar`;
-
-        tournamentNotifications.push(
+    const levelUpNotifications = [];
+    for (const userId of new Set(participantUserIds)) {
+      const gained = xpGainedByUserId.get(userId) ?? 0;
+      if (gained <= 0) continue;
+      const before = xpTotalsBefore.get(userId) ?? 0;
+      const levelBefore = levelFromXp(before).level;
+      const levelAfter = levelFromXp(before + gained).level;
+      if (levelAfter > levelBefore) {
+        levelUpNotifications.push(
           await notificationsRepository.createNotification(tx, {
             userId,
-            type: 'TOURNAMENT_COMPLETED',
-            title: 'Torneio encerrado',
-            body,
-            linkPath: `/torneios/${id}/chaveamento`,
+            type: 'LEVEL_UP',
+            title: 'Você subiu de nível!',
+            body: `Você alcançou o nível ${levelAfter}`,
+            linkPath: '/perfil',
             refId: id,
           }),
         );
       }
+    }
 
-      return { tournament: updated, finalStandings: standings, notifications: tournamentNotifications };
-    },
-  );
+    const updated = await tournamentsRepository.updateTournamentStatus(tx, id, 'COMPLETED');
+    const standings = await tournamentsRepository.findRegistrationsWithFinalPlacement(tx, id);
+
+    // Soma dos pontos ganhos NESTA finalização (vitórias/derrotas +
+    // bônus de colocação), por userId — só para compor o texto da
+    // notificação, não é o saldo total do usuário.
+    const pointsByUserId = new Map<string, number>();
+    for (const entry of pointsEntries) {
+      pointsByUserId.set(entry.userId, (pointsByUserId.get(entry.userId) ?? 0) + entry.amount);
+    }
+
+    const tournamentNotifications = [];
+    for (const { registrationId, placement } of placements) {
+      const userId = userIdByRegistrationId.get(registrationId)!;
+      const points = pointsByUserId.get(userId) ?? 0;
+      const body =
+        points > 0
+          ? `${tournament.name}: você terminou em ${placement}º lugar e ganhou ${points} pontos`
+          : `${tournament.name}: você terminou em ${placement}º lugar`;
+
+      tournamentNotifications.push(
+        await notificationsRepository.createNotification(tx, {
+          userId,
+          type: 'TOURNAMENT_COMPLETED',
+          title: 'Torneio encerrado',
+          body,
+          linkPath: `/torneios/${id}/chaveamento`,
+          refId: id,
+        }),
+      );
+    }
+
+    return {
+      tournament: updated,
+      finalStandings: standings,
+      notifications: [
+        ...tournamentNotifications,
+        ...achievementNotifications,
+        ...levelUpNotifications,
+      ],
+    };
+  });
 
   // Pós-commit (ver comentário de matchesService.broadcastBracketUpdated) —
   // move broadcastTournamentCompleted pra fora do withRls pelo mesmo

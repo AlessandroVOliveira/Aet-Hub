@@ -19,6 +19,7 @@ import { feedRouter } from './modules/feed/feed.routes.js';
 import { reportsRouter } from './modules/reports/reports.routes.js';
 import { auditLogsRouter } from './modules/audit-logs/audit-logs.routes.js';
 import { followsRouter } from './modules/follows/follows.routes.js';
+import { achievementsRouter } from './modules/achievements/achievements.routes.js';
 import { errorHandler } from './middlewares/error-handler.middleware.js';
 
 const app = express();
@@ -74,6 +75,7 @@ app.use('/feed', feedRouter);
 app.use('/reports', reportsRouter);
 app.use('/audit-logs', auditLogsRouter);
 app.use('/follows', followsRouter);
+app.use('/achievements', achievementsRouter);
 
 app.use(errorHandler);
 

@@ -138,6 +138,28 @@ export function createPointsTransactions(
   return tx.pointsTransaction.createMany({ data });
 }
 
+// Usado pelo avaliador de conquistas (RF-29, FIRST_TOURNAMENT) em
+// completeTournament — exclui o próprio torneio sendo encerrado, já que
+// applyFinalPlacements já rodou antes desta chamada e teria inflado a
+// contagem em 1 pra cada participante.
+export async function countPriorCompletedTournamentsByUserIds(
+  tx: Prisma.TransactionClient,
+  userIds: string[],
+  excludeTournamentId: string,
+): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const grouped = await tx.registration.groupBy({
+    by: ['userId'],
+    where: {
+      userId: { in: userIds },
+      finalPlacement: { not: null },
+      tournamentId: { not: excludeTournamentId },
+    },
+    _count: { _all: true },
+  });
+  return new Map(grouped.map((row) => [row.userId, row._count._all]));
+}
+
 // Usado pela resposta do encerramento (RF-14 pede vencedor + colocação de
 // todos os participantes).
 export function findRegistrationsWithFinalPlacement(

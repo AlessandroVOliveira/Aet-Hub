@@ -6,8 +6,15 @@ import type { AccessTokenPayload } from '../auth/jwt.js';
 import * as matchesRepository from '../matches/matches.repository.js';
 import * as registrationsRepository from '../registrations/registrations.repository.js';
 import * as gamesRepository from '../games/games.repository.js';
+import * as xpRepository from '../xp/xp.repository.js';
+import { levelFromXp } from '../xp/xp-level-calculator.js';
+import * as achievementsRepository from '../achievements/achievements.repository.js';
 import * as usersRepository from './users.repository.js';
-import type { AdminUpdateUserInput, ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
+import type {
+  AdminUpdateUserInput,
+  ModerateUserInput,
+  UpdateProfileInput,
+} from './users.schemas.js';
 
 const PROFILE_FIELDS = [
   'displayName',
@@ -85,6 +92,44 @@ export async function getMyWallet(actor: AccessTokenPayload) {
       usersRepository.listPointsTransactions(tx, actor.id),
     ]);
     return { balance, transactions };
+  });
+}
+
+// RF-29 — própria progressão (nível/XP/conquistas), consumido por /perfil.
+export async function getMyXp(actor: AccessTokenPayload) {
+  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const [totalXp, achievements] = await Promise.all([
+      xpRepository.getXpTotal(tx, actor.id),
+      achievementsRepository.findUnlockedByUserId(tx, actor.id),
+    ]);
+    return { progress: levelFromXp(totalXp), achievements };
+  });
+}
+
+// RF-29 — perfil público de terceiros (gap que RF-41 tinha deixado de
+// propósito fora de escopo). 404 quando a função definer não devolve linha
+// (usuário não existe, é ADMIN, está banido ou foi excluído — mesma
+// semântica de "não existe" já usada em outros lugares do projeto).
+export async function getPublicProfile(actor: AccessTokenPayload, targetUserId: string) {
+  return withRls({ userId: actor.id, role: actor.role }, async (tx) => {
+    const snapshot = await usersRepository.findPublicProfileSnapshot(tx, targetUserId);
+    if (!snapshot) {
+      throw new AppError('Usuário não encontrado', 404);
+    }
+
+    const [totalXp, achievements, followCounts] = await Promise.all([
+      xpRepository.getXpTotal(tx, targetUserId),
+      achievementsRepository.findUnlockedByUserId(tx, targetUserId),
+      usersRepository.findFollowCounts(tx, targetUserId),
+    ]);
+
+    return {
+      ...snapshot,
+      progress: levelFromXp(totalXp),
+      achievements,
+      followersCount: followCounts.followersCount,
+      followingCount: followCounts.followingCount,
+    };
   });
 }
 
@@ -201,7 +246,9 @@ export async function updateUserByAdmin(
     // garante que o P2002 pego no catch É sobre aquele campo específico.
     if (input.username !== undefined) {
       try {
-        await usersRepository.updateUserAccountFields(tx, targetUserId, { username: input.username });
+        await usersRepository.updateUserAccountFields(tx, targetUserId, {
+          username: input.username,
+        });
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           throw new AppError('Nome de usuário já está em uso', 409);

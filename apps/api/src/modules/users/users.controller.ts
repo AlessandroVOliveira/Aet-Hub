@@ -1,6 +1,10 @@
 import type { Request, Response } from 'express';
 import * as usersService from './users.service.js';
-import type { AdminUpdateUserInput, ModerateUserInput, UpdateProfileInput } from './users.schemas.js';
+import type {
+  AdminUpdateUserInput,
+  ModerateUserInput,
+  UpdateProfileInput,
+} from './users.schemas.js';
 
 export async function getMyProfileHandler(req: Request, res: Response): Promise<void> {
   const profile = await usersService.getMyProfile(req.user!);
@@ -20,6 +24,16 @@ export async function getMyHistoryHandler(req: Request, res: Response): Promise<
 export async function getMyWalletHandler(req: Request, res: Response): Promise<void> {
   const wallet = await usersService.getMyWallet(req.user!);
   res.status(200).json(wallet);
+}
+
+export async function getMyXpHandler(req: Request, res: Response): Promise<void> {
+  const xp = await usersService.getMyXp(req.user!);
+  res.status(200).json(xp);
+}
+
+export async function getPublicProfileHandler(req: Request, res: Response): Promise<void> {
+  const profile = await usersService.getPublicProfile(req.user!, req.params.id as string);
+  res.status(200).json({ profile });
 }
 
 export async function listAllUsersHandler(req: Request, res: Response): Promise<void> {

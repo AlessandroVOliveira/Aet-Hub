@@ -20,6 +20,31 @@ const games = [
   { name: 'League of Legends', slug: 'league-of-legends' },
 ];
 
+// RF-29 — catálogo mínimo (3 conquistas de exemplo), todas avaliadas em
+// completeTournament (ver modules/achievements/achievement-evaluator.ts).
+// `code` é a chave hardcoded lida pelo avaliador — nunca editável pelo
+// admin, só name/description/rarity/isActive.
+const achievements = [
+  {
+    code: 'FIRST_TOURNAMENT',
+    name: 'Primeiro Torneio',
+    description: 'Concluiu seu primeiro torneio.',
+    rarity: 'COMMON' as const,
+  },
+  {
+    code: 'FIRST_WIN',
+    name: 'Primeira Vitória',
+    description: 'Venceu sua primeira partida.',
+    rarity: 'COMMON' as const,
+  },
+  {
+    code: 'CHAMPION',
+    name: 'Campeão',
+    description: 'Terminou em 1º lugar em um torneio.',
+    rarity: 'RARE' as const,
+  },
+];
+
 // Bootstrap de admin para primeiro uso/testes locais — não há outro jeito
 // de criar um ADMIN (cadastro público sempre cria PLAYER, de propósito, ver
 // RLS). Overridável via env para não deixar credencial fixa em ambientes
@@ -75,6 +100,13 @@ async function seedCommunities(): Promise<void> {
 async function main(): Promise<void> {
   for (const game of games) {
     await seedPrisma.game.upsert({ where: { slug: game.slug }, update: {}, create: game });
+  }
+  for (const achievement of achievements) {
+    await seedPrisma.achievement.upsert({
+      where: { code: achievement.code },
+      update: {},
+      create: achievement,
+    });
   }
 
   await seedAdmin();

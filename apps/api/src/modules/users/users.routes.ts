@@ -8,6 +8,8 @@ import {
   getMyHistoryHandler,
   getMyProfileHandler,
   getMyWalletHandler,
+  getMyXpHandler,
+  getPublicProfileHandler,
   listAllUsersHandler,
   moderateUserHandler,
   updateMyProfileHandler,
@@ -22,6 +24,10 @@ usersRouter.get('/me', asyncHandler(getMyProfileHandler));
 usersRouter.patch('/me', validateBody(updateProfileSchema), asyncHandler(updateMyProfileHandler));
 usersRouter.get('/me/history', asyncHandler(getMyHistoryHandler));
 usersRouter.get('/me/points', asyncHandler(getMyWalletHandler));
+usersRouter.get('/me/xp', asyncHandler(getMyXpHandler));
+
+// RF-29 — perfil público de terceiros (qualquer autenticado, não só ADMIN).
+usersRouter.get('/:id/public', asyncHandler(getPublicProfileHandler));
 
 // RF-25 (Fatia B) — tela /admin/usuarios.
 usersRouter.get('/', requireRole('ADMIN'), asyncHandler(listAllUsersHandler));
