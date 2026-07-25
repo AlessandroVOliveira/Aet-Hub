@@ -113,6 +113,12 @@ export function AdminTournamentsPage() {
                         >
                           Editar
                         </Link>
+                        <Link
+                          to={`/admin/torneios/novo?duplicarDe=${tournament.id}`}
+                          className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase"
+                        >
+                          Duplicar
+                        </Link>
                         {tournament.status !== 'DRAFT' && tournament.status !== 'CANCELLED' && (
                           <Link
                             to={`/admin/torneios/${tournament.id}/checkin`}

@@ -9,6 +9,8 @@ import { Banner } from '@/components/ui/Banner';
 import type {
   BracketType,
   CreateTournamentPayload,
+  PlacementReward,
+  Sponsor,
   TiebreakerRule,
   TournamentDetail,
   TournamentFormFields,
@@ -29,6 +31,7 @@ interface TournamentFormValues extends Omit<
 interface TournamentFormProps {
   mode: 'create' | 'edit';
   tournament?: TournamentDetail;
+  sourceTournament?: TournamentDetail;
   games: Game[];
 }
 
@@ -75,6 +78,24 @@ function emptyDefaults(): TournamentFormValues {
   };
 }
 
+function mapSponsorsForForm(sponsors: Sponsor[]): TournamentFormValues['sponsors'] {
+  return sponsors.map((sponsor) => ({
+    name: sponsor.name,
+    logoUrl: sponsor.logoUrl,
+    link: sponsor.link ?? '',
+  }));
+}
+
+function mapPlacementRewardsForForm(
+  rewards: PlacementReward[],
+): TournamentFormValues['placementRewards'] {
+  return rewards.map((reward) => ({
+    placement: reward.placement,
+    potPercentage: Number(reward.potPercentage),
+    bonusPoints: reward.bonusPoints,
+  }));
+}
+
 function toFormDefaults(tournament: TournamentDetail): TournamentFormValues {
   return {
     name: tournament.name,
@@ -89,17 +110,29 @@ function toFormDefaults(tournament: TournamentDetail): TournamentFormValues {
     tiebreakerRule: tournament.tiebreakerRule ?? '',
     pointsPerWin: tournament.pointsPerWin,
     pointsPerLoss: tournament.pointsPerLoss,
-    sponsors: tournament.sponsors.map((sponsor) => ({
-      name: sponsor.name,
-      logoUrl: sponsor.logoUrl,
-      link: sponsor.link ?? '',
-    })),
-    placementRewards: tournament.placementRewards.map((reward) => ({
-      placement: reward.placement,
-      potPercentage: Number(reward.potPercentage),
-      bonusPoints: reward.bonusPoints,
-    })),
+    sponsors: mapSponsorsForForm(tournament.sponsors),
+    placementRewards: mapPlacementRewardsForForm(tournament.placementRewards),
     status: tournament.status,
+  };
+}
+
+function toDuplicateDefaults(source: TournamentDetail): TournamentFormValues {
+  return {
+    name: `${source.name} (cópia)`,
+    gameId: source.gameId,
+    description: source.description ?? '',
+    registrationStartAt: '',
+    registrationEndAt: '',
+    checkinDeadlineAt: '',
+    eventStartAt: '',
+    entryFeeCents: source.entryFeeCents,
+    bracketType: source.bracketType,
+    tiebreakerRule: source.tiebreakerRule ?? '',
+    pointsPerWin: source.pointsPerWin,
+    pointsPerLoss: source.pointsPerLoss,
+    sponsors: mapSponsorsForForm(source.sponsors),
+    placementRewards: mapPlacementRewardsForForm(source.placementRewards),
+    status: 'DRAFT',
   };
 }
 
@@ -130,7 +163,7 @@ function toSubmitFields(values: TournamentFormValues): TournamentFormFields {
   };
 }
 
-export function TournamentForm({ mode, tournament, games }: TournamentFormProps) {
+export function TournamentForm({ mode, tournament, sourceTournament, games }: TournamentFormProps) {
   const navigate = useNavigate();
   const createMutation = useCreateTournament();
   const updateMutation = useUpdateTournament(tournament?.id ?? '');
@@ -142,7 +175,11 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
     setError,
     formState: { errors, isSubmitting },
   } = useForm<TournamentFormValues>({
-    defaultValues: tournament ? toFormDefaults(tournament) : emptyDefaults(),
+    defaultValues: tournament
+      ? toFormDefaults(tournament)
+      : sourceTournament
+        ? toDuplicateDefaults(sourceTournament)
+        : emptyDefaults(),
   });
 
   const sponsorsArray = useFieldArray({ control, name: 'sponsors' });
@@ -198,7 +235,7 @@ export function TournamentForm({ mode, tournament, games }: TournamentFormProps)
   return (
     <form onSubmit={onSubmit} className="p-4 md:p-8 max-w-2xl space-y-4">
       <h2 className="font-display text-3xl uppercase italic tracking-tight">
-        {mode === 'create' ? 'Novo torneio' : 'Editar torneio'}
+        {mode === 'edit' ? 'Editar torneio' : sourceTournament ? 'Duplicar torneio' : 'Novo torneio'}
       </h2>
 
       {generalError && <Banner variant="error">{generalError}</Banner>}
