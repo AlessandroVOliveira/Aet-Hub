@@ -647,6 +647,49 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `withRls` que resolve a denúncia, nunca `usersService` (que abriria uma
   segunda transação desconectada, quebrando a atomicidade "moderar autor +
   marcar denúncia resolvida").
+- **Contestação de resultado (RF-19) — mutação in-place, não anulação +
+  nova partida**: `Match` já tinha campos reservados (`voidedAt`/
+  `voidedReason`/`status: VOIDED`/`correctedFromMatchId`, self-relation
+  `MatchCorrection`) de uma modelagem especulativa anterior a este módulo
+  existir — nenhum código lia/escrevia neles. RF-19 não usa esses campos:
+  `matches.service.ts#correctMatchResult` (`PATCH /matches/:id/result`,
+  `POST` continua sendo o registro write-once original) segue o mesmo
+  padrão da moderação (RF-25) — atualiza a linha existente e guarda o
+  histórico (valor antigo/novo) só no `AuditLog`
+  (`MATCH_RESULT_CORRECTED`, metadata com o diff completo + `reason`
+  obrigatório, mesma convenção `min(5)/max(500)` de
+  `reports.schemas.ts`/`users.schemas.ts`). `matchesRepository
+  .correctMatchResult` é uma função nova separada de `updateMatchResult`
+  — não toca `status`/`playedAt` (a partida já está `COMPLETED` e o
+  `playedAt` original não deve mudar, é correção, não um novo jogo).
+- **Escopo travado a torneio `IN_PROGRESS`**: pontos (`PointsTransaction`)
+  e `Registration.finalPlacement` só existem a partir de
+  `completeTournament`, calculados uma única vez (ver bullet de
+  colocação final acima) — corrigir depois disso exigiria reverter
+  ledger append-only (sem UPDATE, ver bullet de RLS de
+  `points_transactions`) e recalcular colocação, então
+  `correctMatchResult` rejeita (409) qualquer torneio que não esteja
+  `IN_PROGRESS`. Fica para uma fatia futura.
+- **Cascata de correção limitada a exatamente 1 nível**:
+  `registrationAId`/`registrationBId` de partidas futuras são snapshots
+  copiados na criação (ver bullet de semântica de `BracketSlot`/`Match`
+  acima), não derivados — corrigir o vencedor de uma partida cujo
+  resultado já avançou pra rodada seguinte exige propagar o snapshot.
+  `correctMatchResult` localiza a partida seguinte reaproveitando
+  exatamente a mesma matemática de
+  `bracket-generator.ts#maybeCreateNextRoundMatch` (`targetSlot` = slot
+  de destino da partida corrigida → `nextSlot` na rodada seguinte →
+  `findMatchByBracketSlotId`), não uma busca por `registrationId` (que
+  seria ambígua — o mesmo jogador aparece em `registrationAId`/`BId` de
+  partidas anteriores também). Se a partida seguinte ainda não existe
+  (par irmão não preenchido) ou existe e está `SCHEDULED`, a correção
+  propaga automaticamente (`matchesRepository.updateMatchParticipant`,
+  no lado `A`/`B` determinado pela paridade de `targetSlot.position`,
+  mesma regra de `maybeCreateNextRoundMatch`); se a partida seguinte já
+  está `COMPLETED`, rejeita (409) — cascata de mais de 1 nível
+  (corrigir uma partida cujo vencedor errado já jogou E venceu mais uma
+  rodada) fica pra uma fatia futura, o admin precisa corrigir a partida
+  seguinte primeiro.
 
 ## Padrões do frontend (apps/web)
 
@@ -940,6 +983,26 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `ReportForm.tsx` não cabe numa célula de tabela densa sem redesenhar a
   tabela inteira. `ReportStatus` do frontend ganhou `RESOLVED` (label
   "Resolvida", tone `accent`) espelhando o enum novo do backend.
+- **Contestação de resultado (RF-19) — frontend**: `BracketMatchCard.tsx`
+  ganha uma segunda affordance inline (sem modal, mesmo padrão do form de
+  registro) — botão "Corrigir resultado" quando `match.status ===
+  'COMPLETED'` (só admin), abrindo o mesmo par radio+placar do form de
+  registro, pré-preenchido com o resultado atual, mais um `<textarea>` de
+  motivo com contador `{length}/500` — mesmo componente visual de
+  `components/reports/ReportForm.tsx` (`MIN_REASON_LENGTH = 5`,
+  `MAX_REASON_LENGTH = 500`), só que inline no próprio arquivo (não
+  reaproveita `ReportForm` porque o schema de payload é outro — vencedor/
+  placar/motivo, não `contentType`/`contentId`/motivo). Os campos
+  vencedor+placar viraram um componente local `ResultFields` (não
+  exportado, só usado dentro deste arquivo) pra não duplicar o
+  fieldset/inputs entre os dois forms. **Sem gate client-side pelo status
+  do torneio**: `BracketPage` não busca dados do torneio hoje, só do
+  bracket, e não existe um hook de leitura pública de um único torneio —
+  confia no 409 do backend (torneio não é mais `IN_PROGRESS`, ou a
+  partida seguinte já foi disputada) mostrado no mesmo `<Banner
+  variant="error">` inline do form, sem introduzir endpoint/hook novo só
+  pra essa checagem (caso raro: só acontece se o admin tentar corrigir
+  depois do torneio já ter sido encerrado).
 
 ## Banco de dados local (Docker Compose)
 
