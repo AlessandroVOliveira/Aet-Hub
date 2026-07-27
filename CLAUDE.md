@@ -903,6 +903,58 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   → points_transactions → xp_transactions → user_achievements → matches
   → bracket_slots → checkins → registrations → tournaments → follows →
   users).
+- **Armário cosmético — bordas e títulos (fatia 1)**: três tabelas novas
+  (`CosmeticItem` catálogo, RLS estilo `achievements`/`store_items`;
+  `UserCosmeticItem` posse por compra, sem relation Prisma pra `User`,
+  mesmo motivo de `Follow`/`Report`) + `CosmeticRarity`
+  (COMMON/RARE/EPIC/LEGENDARY, enum próprio — diferente de
+  `AchievementRarity`, que só tem COMMON/RARE) + `COSMETIC_PURCHASE` em
+  `PointsTransactionType`. `CosmeticItem` tem `@@unique([kind, name])`
+  só pra permitir `upsert` idempotente no seed. Posse de item **derivada**
+  na leitura, nunca duplicada em `UserCosmeticItem`: item grátis padrão
+  (`priceInPoints === 0 && !unlockAchievementCode`) ou item
+  achievement-linked (existe `UserAchievement` do código correspondente)
+  são calculados em `cosmetics-ownership.ts` (função pura); só compra real
+  grava linha. `PointsTransaction.userCosmeticItemId` espelha
+  `redemptionId` 1:1. Módulo `modules/cosmetics/` clona `modules/games/` +
+  `modules/store/` (`pg_advisory_xact_lock('cosmetic_purchase:' || userId)`,
+  namespace próprio pra não serializar à toa contra resgates da loja).
+  `PATCH /cosmetics/loadout` precisa estar registrada **antes** de `/:id`
+  no router — senão a rota parametrizada de update-admin engole
+  `/cosmetics/loadout` tratando `"loadout"` como id.
+- **Gotcha de migration real: `CREATE OR REPLACE FUNCTION` não muda o shape
+  do `RETURNS TABLE`**: estender `app_public_profile_snapshot` (pra
+  acrescentar `equipped_frame_id`/`equipped_title_id`) via `CREATE OR
+  REPLACE` falhou com 42P13 ("cannot change return type of existing
+  function") — Postgres não aceita alterar os OUT parameters de uma função
+  existente assim, mesmo só acrescentando coluna no fim. Precisa de `DROP
+  FUNCTION` explícito antes do `CREATE` (e reaplicar `REVOKE`/`GRANT`, que
+  não sobrevivem ao drop), os dois na mesma migration/transação. Vale pra
+  qualquer função `SECURITY DEFINER` que ganhe coluna nova no retorno —
+  `app_create_notification` nunca bateu nisso porque seu retorno
+  (`RETURNS notifications`, uma linha da própria tabela) nunca mudou de
+  shape.
+- **Armário cosmético — propagação pro resto do produto (fatia 2)**: os 4
+  pontos de leitura usam mecanismos diferentes, não um padrão único
+  repetido. Ranking: `app_points_leaderboard()` estendida (mesmo
+  `DROP FUNCTION` + `CREATE` acima) com `equipped_frame_id`/
+  `equipped_title_id`. Chave: zero migration —
+  `matches.repository.ts#registrationSeatSelect` já selecionava
+  `profile.displayName`, só precisou acrescentar `equippedFrame`/
+  `equippedTitle` no mesmo `select` aninhado (`cosmetic_items` é catálogo
+  público). Chat geral + posts/comentários: zero query nova — os services
+  já buscavam o próprio `Profile` (que já inclui o loadout) antes de
+  gravar `senderDisplayName`/`authorDisplayName`; só passou a gravar mais
+  3 campos como **snapshot** em colunas novas (`senderFrameClassName`/
+  `senderTitleName`/`senderTitleRarity` em `ChatMessage`;
+  `authorFrameClassName`/`authorTitleName`/`authorTitleRarity` em
+  `Post`/`Comment`) — className/nome/raridade diretos, não FK pra
+  `cosmetic_items`, pra mensagem sobreviver a item desativado/editado
+  depois. DM ficou de fora (bolha de DM nem mostra `senderName` hoje).
+  **Assimetria por design, não bug**: ranking/chave mostram o loadout AO
+  VIVO (recalculado a cada request); chat/comunidade mostram um SNAPSHOT
+  congelado no momento do envio — mesma semântica que
+  `senderDisplayName`/`authorDisplayName` já tinham.
 
 ## Padrões do frontend (apps/web)
 
@@ -1371,6 +1423,96 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `useAdminAchievements()` já cacheada + `.find(id)`, mesmo truque). Novo
   item `Admin Conquistas` em `NAV_ITEMS` (`AppLayout.tsx`), mesmo padrão
   dos outros itens admin.
+- **Armário cosmético — design portado de `pixel-palette-pal-07`**:
+  `src-lovable/pixel-palette-pal-07/src/routes/profile.tsx` trouxe um
+  redesenho de `/perfil` inteiro (card de perfil customizável com
+  banner/moldura/mascote sobrepostos, grid de cards de cosmético por
+  raridade, toggle Visão geral/Personalizar, filtro por categoria dentro
+  do armário) — portado fielmente, ver regra geral desta subpasta em
+  "Documentação de produto". Categorias implementadas nesta fatia:
+  **bordas (frame) + títulos (title)** — fonte, mascote, banner e efeitos
+  (scanline/glow) ficam pra fatias futuras, ver próxima seção.
+- **Armário cosmético — implementação (fatia 1)**: `CosmeticCloset.tsx`
+  (componente novo, tabs Bordas/Títulos, grid de cards com
+  Comprar/Equipar/Equipado/bloqueado-por-conquista) fica dentro da aba
+  "Personalizar" de `ProfilePage.tsx` (toggle `overview`/`closet` no state
+  local, botão no `PageHeader`). Avatar (própria página e
+  `PublicProfilePage`) recebe a `className` do frame equipado no lugar do
+  ring padrão; chip de título renderiza ao lado.
+  `cosmeticRarityStyle`/`cosmeticRarityLabels` novos em `utils/format.ts`
+  (4 tons, fora do sistema de 3 tons do `StatusChip` — raridade de
+  cosmético é um conceito à parte). Admin:
+  `AdminCosmeticsPage`/`AdminCosmeticFormPage`/`CosmeticForm.tsx` clonam
+  `AdminGames*`/`GameForm` 1:1, nav item `Admin Cosméticos` depois de
+  `Admin Conquistas`.
+- **Armário cosmético — propagação pro resto do produto (fatia 2)**:
+  `PlayerBadge.tsx` (componente novo, avatar compacto + `cosmeticRarityStyle`
+  pro chip de título) é o primeiro avatar de qualquer tipo em
+  ranking/chave/chat/comunidade — nenhuma das 4 tinha elemento de avatar
+  antes desta fatia. Reaproveitado em `RankingPage` (nova coluna flex na
+  célula "Player"), `BracketMatchCard` (`seatLabel` virou `SeatLabel`,
+  componente), `MessageBubble` (só quando `!mine`, mesma condição de
+  `senderName`), `CommunityPage`/`PostDetailPage` (post + comentário).
+  Ver bullet correspondente em "Padrões do backend" pra semântica de
+  loadout ao vivo (ranking/chave) vs. snapshot congelado (chat/comunidade).
+  Fatias futuras documentadas, não implementadas: Fonte + Mascote (mesmas
+  4 superfícies, `PlayerBadge` já pronto pra reaproveitar); Banner +
+  Efeitos (só `/perfil`/`/perfil/:userId`, exige portar
+  `animate-mascot-bounce`/`animate-mascot-float`/ajustar `animate-scanline`
+  pro `theme.css` real); itens de raridade lendário via torneio "Major"/
+  temporada (bloqueado até esses conceitos existirem no produto); DM
+  ganhando a mesma decoração (só se pedido); mapear `title-duelista` (e
+  outros itens desbloqueados por conquista) pra um `Achievement.code` real
+  (decisão de conteúdo pendente).
+- **`ProfilePage.tsx` reorganizada pra bater com `pixel-palette-pal-07`
+  fielmente**: o design portado na fatia do Armário Cosmético (ver bullets
+  acima) tinha ficado só na aba "Personalizar"; a aba "Visão geral" ainda
+  usava a montagem antiga (lista simples, sem o card de perfil nem o
+  layout de duas colunas do mock). Reorganizado: **card de perfil**
+  (avatar+moldura grande, nome em `font-display italic text-3xl md:text-5xl`,
+  chips de título+nível abaixo do nome, jogo favorito/personagem/tema
+  alinhados à direita — substitui a lista `kind: nome` do mock, que lista
+  os 6 cosméticos equipados; como só frame+title existem, os 3 campos reais
+  do perfil ocupam esse espaço em vez de inventar dado); **layout de duas
+  colunas** abaixo (só na aba "Visão geral"): coluna principal
+  (`lg:col-span-2`) com progresso de XP + históricos de torneio/partida,
+  coluna lateral (`aside`) com Loadout (painel novo — borda/título
+  equipados + botão "Trocar" que muda pra aba Personalizar), Conquistas,
+  Seguindo, Seguidores. `PageHeader` ganhou o **badge de pontos** que o
+  mock tem nas actions (`useMyWallet`, mesmo hook já usado em `AppLayout`/
+  `CosmeticCloset`) — tinha ficado de fora da primeira versão da
+  reorganização. Campo "cidade" do mock **não tem equivalente real**
+  (perfil do AET Hub não guarda cidade, só CEP de cadastro) — deixado de
+  fora conscientemente, não inventado.
+- **Gotcha real: `truncate` corta visualmente a última letra de texto em
+  itálico**: a primeira versão do card de perfil usava `truncate`
+  (`overflow-hidden` + `text-overflow: ellipsis`) no nome, pra proteger
+  contra nomes muito longos — o mock não tem essa classe. Resultado: a
+  itálica sintética do `font-display italic` (Anton) faz o glifo da
+  última letra vaiar um pouco além da largura calculada da string (ex.
+  "T" de "Admin AET"), e o `overflow-hidden` corta exatamente essa borda
+  — bug só visível olhando a tela renderizada, não em lint/tsc. Fix:
+  remover `truncate` (mesmo comportamento do mock — nome muito longo
+  quebra/estoura o layout, não é tratado, aceitável por fidelidade ao
+  design de referência).
+- **`LevelProgressBar.tsx` restilizado pra bater com o card "Progresso" do
+  mock**: XP atual em destaque (`font-display text-3xl italic`, era
+  `font-mono text-[10px]`), label "Progresso" acima (era "Nível X"),
+  "Próximo: LVL X" em `text-ember` alinhado à direita do cabeçalho (era
+  `text-silver-muted` abaixo da barra). O número do nível em si não
+  aparece mais neste componente — já é mostrado no chip do card de perfil
+  e no `accent` do `PageHeader`, mesmo padrão de não-duplicação do mock.
+  Componente é compartilhado com `PublicProfilePage.tsx`, então o fix
+  vale pras duas telas.
+- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda):
+  `PublicProfilePage.tsx` não recebeu a mesma reorganização de layout
+  desta sessão (só o card de perfil da fatia do Armário Cosmético já
+  existia lá) — candidata natural se a fidelidade visual também importar
+  pro perfil de terceiros. Fatias futuras do Armário Cosmético (Fonte +
+  Mascote, Banner + Efeitos) documentadas nos bullets acima. RF-08
+  (recuperação de senha por e-mail) e RF-10 (excluir conta/exportar
+  dados, LGPD) seguem como próximas fatias funcionais candidatas da
+  Fase 1, ainda sem decisão de qual vem primeiro.
 
 ## Banco de dados local (Docker Compose)
 
@@ -1419,6 +1561,21 @@ chat); o tratamento disso no
 frontend real está descrito em "Estrutura de layout de página" acima —
 nunca copiar uma tela do Lovable 1:1 sem antes checar se a rota/campo
 correspondente existe na API.
+
+**`src-lovable/pixel-palette-pal-07/` é uma subpasta com regra própria,
+mais estrita que a regra geral acima**: é um export do Lovable que o
+usuário atualiza via `git pull` sempre que refina o design lá — não é uma
+cópia estática de uma sessão só, como o resto de `src-lovable/`. Aqui o
+**design em si é a fonte de verdade**, não só estrutura/dado: o usuário
+confirmou explicitamente (fatia do Armário Cosmético, `/perfil`) que o
+layout desta subpasta deve ser **portado fielmente**, sem redesenho —
+"nunca copiar 1:1 sem checar contrapartida na API" continua valendo pro
+que a tela *faz* (rotas/campos/ações reais), mas não pro que ela
+*parece*. Essa regra vale pra qualquer tela desta subpasta, inclusive
+atualizações trazidas por um `git pull` futuro: sempre reconferir
+`src-lovable/pixel-palette-pal-07/src/routes/*` (e `src/lib/mock.ts`)
+antes de tocar na tela `apps/web` correspondente, mesmo que já tenha sido
+implementada antes — o conteúdo pode ter mudado desde a última vez.
 
 O roadmap do deck (Level 1 MVP → Level 4 Integração) cita explicitamente
 **PIX** como o método de pagamento planejado para inscrição paga — hoje o
