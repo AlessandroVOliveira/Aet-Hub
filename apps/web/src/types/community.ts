@@ -1,4 +1,5 @@
 import type { Game } from '@/types/game';
+import type { CosmeticRarity } from '@/types/cosmetic';
 
 export interface Community {
   id: string;
@@ -17,6 +18,9 @@ export interface Post {
   communityId: string;
   userId: string;
   authorDisplayName: string;
+  authorFrameClassName: string | null;
+  authorTitleName: string | null;
+  authorTitleRarity: CosmeticRarity | null;
   content: string;
   createdAt: string;
   commentCount: number;
@@ -31,6 +35,9 @@ export interface PostComment {
   postId: string;
   userId: string;
   authorDisplayName: string;
+  authorFrameClassName: string | null;
+  authorTitleName: string | null;
+  authorTitleRarity: CosmeticRarity | null;
   content: string;
   createdAt: string;
 }

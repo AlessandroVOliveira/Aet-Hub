@@ -1,3 +1,5 @@
+import type { CosmeticRarity } from './cosmetic';
+
 export type BracketSide = 'WINNERS' | 'LOSERS';
 export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'VOIDED';
 
@@ -8,7 +10,11 @@ export interface RegistrationSeat {
   user: {
     id: string;
     username: string;
-    profile: { displayName: string } | null;
+    profile: {
+      displayName: string;
+      equippedFrame: { className: string | null } | null;
+      equippedTitle: { name: string; rarity: CosmeticRarity } | null;
+    } | null;
   };
 }
 

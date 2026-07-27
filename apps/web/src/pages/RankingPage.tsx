@@ -7,6 +7,7 @@ import { useFollowing, useFollowMutation, useUnfollowMutation } from '@/hooks/us
 import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
+import { PlayerBadge } from '@/components/PlayerBadge';
 
 export function RankingPage() {
   const { data, isLoading, isError, error } = useRanking();
@@ -64,18 +65,26 @@ export function RankingPage() {
                     }`}
                   >
                     <span className="font-display italic text-lg">{entry.position}</span>
-                    <span className="font-mono truncate">
-                      {isMe ? (
-                        (entry.displayName ?? entry.username)
-                      ) : (
-                        <Link
-                          to={`/perfil/${entry.userId}`}
-                          className="hover:text-ember hover:underline"
-                        >
-                          {entry.displayName ?? entry.username}
-                        </Link>
-                      )}{' '}
-                      {isMe && <span className="text-ember text-[10px]">(você)</span>}
+                    <span className="font-mono truncate flex items-center gap-2 min-w-0">
+                      <PlayerBadge
+                        initial={(entry.displayName ?? entry.username)[0] ?? '?'}
+                        frameClassName={entry.frame?.className}
+                        titleName={entry.title?.name}
+                        titleRarity={entry.title?.rarity}
+                      />
+                      <span className="truncate">
+                        {isMe ? (
+                          (entry.displayName ?? entry.username)
+                        ) : (
+                          <Link
+                            to={`/perfil/${entry.userId}`}
+                            className="hover:text-ember hover:underline"
+                          >
+                            {entry.displayName ?? entry.username}
+                          </Link>
+                        )}{' '}
+                        {isMe && <span className="text-ember text-[10px]">(você)</span>}
+                      </span>
                     </span>
                     <span className="text-right font-mono text-ember">
                       {entry.points.toLocaleString('pt-BR')}

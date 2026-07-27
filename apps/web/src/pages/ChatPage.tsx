@@ -80,6 +80,9 @@ export function ChatPage() {
             id={message.id}
             mine={message.userId === user?.id}
             senderName={message.senderDisplayName}
+            senderFrameClassName={message.senderFrameClassName}
+            senderTitleName={message.senderTitleName}
+            senderTitleRarity={message.senderTitleRarity}
             content={message.content}
             createdAt={message.createdAt}
             reportContentType="CHAT_MESSAGE"

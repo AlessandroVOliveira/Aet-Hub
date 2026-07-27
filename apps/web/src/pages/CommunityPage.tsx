@@ -8,6 +8,7 @@ import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
 import { ReportForm } from '@/components/reports/ReportForm';
+import { PlayerBadge } from '@/components/PlayerBadge';
 import { formatDate } from '@/utils/format';
 import type { Post } from '@/types/community';
 
@@ -127,7 +128,13 @@ function PostCard({ communityId, post }: { communityId: string; post: Post }) {
   return (
     <article className="bg-navy-light ring-1 ring-silver/10 p-4">
       <header className="flex items-center justify-between mb-2">
-        <span className="font-mono text-xs">
+        <span className="font-mono text-xs flex items-center gap-1.5">
+          <PlayerBadge
+            initial={post.authorDisplayName[0] ?? '?'}
+            frameClassName={post.authorFrameClassName}
+            titleName={post.authorTitleName}
+            titleRarity={post.authorTitleRarity}
+          />
           <span className="text-silver">@{post.authorDisplayName}</span>
           <span className="text-silver-muted ml-2">{formatDate(post.createdAt)}</span>
         </span>

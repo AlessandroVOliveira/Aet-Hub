@@ -1,7 +1,12 @@
+import type { CosmeticRarity } from './cosmetic';
+
 export interface ChatMessage {
   id: string;
   userId: string;
   senderDisplayName: string;
+  senderFrameClassName: string | null;
+  senderTitleName: string | null;
+  senderTitleRarity: CosmeticRarity | null;
   content: string;
   createdAt: string;
 }

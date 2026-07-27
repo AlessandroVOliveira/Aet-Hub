@@ -8,6 +8,7 @@ import { ApiError } from '@/services/http';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Banner } from '@/components/ui/Banner';
 import { ReportForm } from '@/components/reports/ReportForm';
+import { PlayerBadge } from '@/components/PlayerBadge';
 import { formatDate } from '@/utils/format';
 import type { PostComment } from '@/types/community';
 
@@ -59,7 +60,13 @@ export function PostDetailPage() {
       <div className="p-4 md:p-8 max-w-2xl space-y-4">
         <article className="bg-navy-light ring-1 ring-silver/10 p-4">
           <header className="flex items-center justify-between mb-2">
-            <span className="font-mono text-xs">
+            <span className="font-mono text-xs flex items-center gap-1.5">
+              <PlayerBadge
+                initial={post.authorDisplayName[0] ?? '?'}
+                frameClassName={post.authorFrameClassName}
+                titleName={post.authorTitleName}
+                titleRarity={post.authorTitleRarity}
+              />
               <span className="text-silver">@{post.authorDisplayName}</span>
               <span className="text-silver-muted ml-2">{formatDate(post.createdAt)}</span>
             </span>
@@ -135,7 +142,13 @@ function CommentRow({
   return (
     <article className="bg-navy-light ring-1 ring-silver/10 p-3">
       <header className="flex items-center justify-between mb-1 flex-wrap gap-1">
-        <span className="font-mono text-xs">
+        <span className="font-mono text-xs flex items-center gap-1.5">
+          <PlayerBadge
+            initial={comment.authorDisplayName[0] ?? '?'}
+            frameClassName={comment.authorFrameClassName}
+            titleName={comment.authorTitleName}
+            titleRarity={comment.authorTitleRarity}
+          />
           <span className="text-silver">@{comment.authorDisplayName}</span>
           <span className="text-silver-muted ml-2">{formatDate(comment.createdAt)}</span>
         </span>

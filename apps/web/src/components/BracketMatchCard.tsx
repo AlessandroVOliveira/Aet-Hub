@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useRecordMatchResult, useCorrectMatchResult } from '@/hooks/useMatchMutations';
 import { ApiError } from '@/services/http';
 import { Banner } from '@/components/ui/Banner';
+import { PlayerBadge } from '@/components/PlayerBadge';
 import type { RegistrationSeat } from '@/types/bracket';
 import type { BracketPairing } from '@/utils/build-bracket-columns';
 
@@ -14,9 +15,30 @@ interface BracketMatchCardProps {
   canRecordResult: boolean;
 }
 
-function seatLabel(seat: RegistrationSeat | null): string {
+function seatName(seat: RegistrationSeat | null): string {
   if (!seat) return 'A definir';
   return seat.user.profile?.displayName ?? seat.user.username;
+}
+
+// Armário cosmético (fatia 2): borda/título equipados, vindos do mesmo
+// select de profile já usado pra displayName — visibilidade continua sendo
+// a de colega de torneio, nenhuma leitura nova.
+function SeatLabel({ seat }: { seat: RegistrationSeat | null }) {
+  const name = seatName(seat);
+  if (!seat) {
+    return <span className="font-mono truncate">{name}</span>;
+  }
+  return (
+    <span className="font-mono truncate flex items-center gap-2 min-w-0">
+      <PlayerBadge
+        initial={name[0] ?? '?'}
+        frameClassName={seat.user.profile?.equippedFrame?.className}
+        titleName={seat.user.profile?.equippedTitle?.name}
+        titleRarity={seat.user.profile?.equippedTitle?.rarity}
+      />
+      <span className="truncate">{name}</span>
+    </span>
+  );
 }
 
 // Compartilhado pelos dois forms inline (registrar/corrigir) — mesmos
@@ -60,7 +82,7 @@ function ResultFields({
                 onChange={() => onWinnerChange(seat.id)}
                 className="accent-ember"
               />
-              {seatLabel(seat)}
+              <SeatLabel seat={seat} />
             </label>
           ))}
       </fieldset>
@@ -181,7 +203,7 @@ export function BracketMatchCard({ pairing, tournamentId, canRecordResult }: Bra
             isWinner ? 'bg-ember/10 text-ember' : ''
           } ${index === 0 ? 'border-b border-silver/5' : ''}`}
         >
-          <span className="font-mono truncate">{seatLabel(seat)}</span>
+          <SeatLabel seat={seat} />
           {score !== null && score !== undefined && (
             <span className="font-display italic text-lg">{score}</span>
           )}

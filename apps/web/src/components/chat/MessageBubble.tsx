@@ -1,11 +1,19 @@
 import { formatTime } from '@/utils/format';
 import { ReportForm } from '@/components/reports/ReportForm';
+import { PlayerBadge } from '@/components/PlayerBadge';
 import type { ReportedContentType } from '@/types/report';
+import type { CosmeticRarity } from '@/types/cosmetic';
 
 interface MessageBubbleProps {
   id: string;
   mine: boolean;
   senderName?: string;
+  // Armário cosmético (fatia 2) — snapshot do loadout do remetente no
+  // momento do envio (ver ChatMessage). Só faz sentido junto de
+  // senderName (chat geral); DM não recebe nenhum dos dois.
+  senderFrameClassName?: string | null;
+  senderTitleName?: string | null;
+  senderTitleRarity?: CosmeticRarity | null;
   content: string;
   createdAt: string;
   // Chat geral e DM são endpoints RF-40 diferentes (ver reports.service.ts),
@@ -19,6 +27,9 @@ export function MessageBubble({
   id,
   mine,
   senderName,
+  senderFrameClassName,
+  senderTitleName,
+  senderTitleRarity,
   content,
   createdAt,
   reportContentType,
@@ -31,7 +42,15 @@ export function MessageBubble({
         }`}
       >
         {!mine && senderName && (
-          <p className="text-[10px] font-mono text-ember mb-0.5">{senderName}</p>
+          <p className="text-[10px] font-mono text-ember mb-0.5 flex items-center gap-1.5">
+            <PlayerBadge
+              initial={senderName[0] ?? '?'}
+              frameClassName={senderFrameClassName}
+              titleName={senderTitleName}
+              titleRarity={senderTitleRarity}
+            />
+            {senderName}
+          </p>
         )}
         <p className="break-words">{content}</p>
         {/* div, não <p> — ReportForm pode renderizar um <div> quando
