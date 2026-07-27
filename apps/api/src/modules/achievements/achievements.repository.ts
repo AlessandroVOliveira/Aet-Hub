@@ -79,3 +79,16 @@ export function findUnlockedByUserId(tx: Prisma.TransactionClient, userId: strin
     orderBy: { unlockedAt: 'desc' },
   });
 }
+
+// Usado pelo armário cosmético (modules/cosmetics) pra derivar posse de
+// item destravado por conquista — só os códigos, sem o resto da linha.
+export async function findUnlockedAchievementCodes(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<Set<string>> {
+  const rows = await tx.userAchievement.findMany({
+    where: { userId },
+    select: { achievement: { select: { code: true } } },
+  });
+  return new Set(rows.map((row) => row.achievement.code));
+}

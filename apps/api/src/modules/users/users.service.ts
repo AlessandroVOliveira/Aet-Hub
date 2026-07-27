@@ -9,6 +9,7 @@ import * as gamesRepository from '../games/games.repository.js';
 import * as xpRepository from '../xp/xp.repository.js';
 import { levelFromXp } from '../xp/xp-level-calculator.js';
 import * as achievementsRepository from '../achievements/achievements.repository.js';
+import * as cosmeticsRepository from '../cosmetics/cosmetics.repository.js';
 import * as usersRepository from './users.repository.js';
 import type {
   AdminUpdateUserInput,
@@ -117,18 +118,31 @@ export async function getPublicProfile(actor: AccessTokenPayload, targetUserId: 
       throw new AppError('Usuário não encontrado', 404);
     }
 
-    const [totalXp, achievements, followCounts] = await Promise.all([
+    // Loadout (armário cosmético, fatia 1): a função definer só devolve os
+    // ids equipados (bypassa RLS de profiles) — resolver nome/className/
+    // raridade contra cosmetic_items é leitura comum, catálogo público sem
+    // RLS pra se preocupar (diferente da travessia users/profiles acima).
+    const cosmeticIds = [snapshot.equippedFrameId, snapshot.equippedTitleId].filter(
+      (id): id is string => id !== null,
+    );
+    const [totalXp, achievements, followCounts, equippedCosmetics] = await Promise.all([
       xpRepository.getXpTotal(tx, targetUserId),
       achievementsRepository.findUnlockedByUserId(tx, targetUserId),
       usersRepository.findFollowCounts(tx, targetUserId),
+      cosmeticsRepository.findCosmeticItemsByIds(tx, cosmeticIds),
     ]);
+    const cosmeticById = new Map(equippedCosmetics.map((item) => [item.id, item]));
+
+    const { equippedFrameId, equippedTitleId, ...publicFields } = snapshot;
 
     return {
-      ...snapshot,
+      ...publicFields,
       progress: levelFromXp(totalXp),
       achievements,
       followersCount: followCounts.followersCount,
       followingCount: followCounts.followingCount,
+      equippedFrame: equippedFrameId ? (cosmeticById.get(equippedFrameId) ?? null) : null,
+      equippedTitle: equippedTitleId ? (cosmeticById.get(equippedTitleId) ?? null) : null,
     };
   });
 }

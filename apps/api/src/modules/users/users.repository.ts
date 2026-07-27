@@ -3,9 +3,15 @@ import type { Prisma } from '@prisma/client';
 // Todo método recebe a transação interativa aberta por withRls — nunca
 // importar o `prisma` singleton aqui.
 
+// equippedFrame/equippedTitle apontam pra CosmeticItem, catálogo público
+// (cosmetic_items_authenticated_select libera qualquer sessão autenticada)
+// — sem o gotcha de relação obrigatória + RLS já documentado no projeto
+// pra users/profiles, porque não há RLS nenhuma bloqueando essa leitura.
 const profileDetailInclude = {
   favoriteGame: { select: { id: true, name: true, slug: true } },
   user: { select: { id: true, username: true, email: true } },
+  equippedFrame: true,
+  equippedTitle: true,
 } satisfies Prisma.ProfileInclude;
 
 export function findProfileByUserId(tx: Prisma.TransactionClient, userId: string) {
@@ -19,6 +25,8 @@ export interface ProfileWriteData {
   theme?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
+  equippedFrameId?: string | null;
+  equippedTitleId?: string | null;
 }
 
 export function updateProfile(
@@ -142,6 +150,8 @@ interface PublicProfileSnapshotRow {
   favorite_game_name: string | null;
   favorite_character: string | null;
   theme: string | null;
+  equipped_frame_id: string | null;
+  equipped_title_id: string | null;
 }
 
 export interface PublicProfileSnapshot {
@@ -150,6 +160,8 @@ export interface PublicProfileSnapshot {
   favoriteGameName: string | null;
   favoriteCharacter: string | null;
   theme: string | null;
+  equippedFrameId: string | null;
+  equippedTitleId: string | null;
 }
 
 export async function findPublicProfileSnapshot(
@@ -167,6 +179,8 @@ export async function findPublicProfileSnapshot(
     favoriteGameName: row.favorite_game_name,
     favoriteCharacter: row.favorite_character,
     theme: row.theme,
+    equippedFrameId: row.equipped_frame_id,
+    equippedTitleId: row.equipped_title_id,
   };
 }
 

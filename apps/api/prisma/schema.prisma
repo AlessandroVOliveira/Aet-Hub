@@ -76,6 +76,7 @@ enum PointsTransactionType {
   BONUS
   REDEMPTION
   ADJUSTMENT
+  COSMETIC_PURCHASE
 }
 
 enum RedemptionStatus {
@@ -105,6 +106,27 @@ enum XpTransactionType {
   MATCH_LOSS
   PLACEMENT
   PARTICIPATION
+}
+
+// Todos os 6 slots do armário cosmético de uma vez (mesmo espírito de
+// ReportedContentType cobrir os 5 tipos de conteúdo de uma vez) — só FRAME/
+// TITLE têm item de catálogo nesta fatia, os demais aguardam fatias futuras.
+enum CosmeticKind {
+  FRAME
+  BANNER
+  TITLE
+  FONT
+  EFFECT
+  MASCOT
+}
+
+// Raridade de cosmético, conceito separado de AchievementRarity (que só
+// tem 2 valores e descreve conquista, não item equipável).
+enum CosmeticRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
 }
 
 model User {
@@ -151,11 +173,15 @@ model Profile {
   theme             String?
   avatarUrl         String?  @map("avatar_url")
   bio               String?
+  equippedFrameId   String?  @map("equipped_frame_id")
+  equippedTitleId   String?  @map("equipped_title_id")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  user         User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  favoriteGame Game? @relation(fields: [favoriteGameId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteGame Game?          @relation(fields: [favoriteGameId], references: [id])
+  equippedFrame CosmeticItem? @relation("ProfileEquippedFrame", fields: [equippedFrameId], references: [id])
+  equippedTitle CosmeticItem? @relation("ProfileEquippedTitle", fields: [equippedTitleId], references: [id])
 
   @@map("profiles")
 }
@@ -341,22 +367,24 @@ model Match {
 }
 
 model PointsTransaction {
-  id              String                @id @default(cuid())
-  userId          String                @map("user_id")
-  type            PointsTransactionType
-  amount          Int
-  tournamentId    String?               @map("tournament_id")
-  matchId         String?               @map("match_id")
-  redemptionId    String?               @unique @map("redemption_id")
-  description     String
-  createdByUserId String?               @map("created_by_user_id")
-  createdAt       DateTime              @default(now()) @map("created_at")
+  id                 String                @id @default(cuid())
+  userId             String                @map("user_id")
+  type               PointsTransactionType
+  amount             Int
+  tournamentId       String?               @map("tournament_id")
+  matchId            String?               @map("match_id")
+  redemptionId       String?               @unique @map("redemption_id")
+  userCosmeticItemId String?               @unique @map("user_cosmetic_item_id")
+  description        String
+  createdByUserId    String?               @map("created_by_user_id")
+  createdAt          DateTime              @default(now()) @map("created_at")
 
-  user       User        @relation("PointsTransactionUser", fields: [userId], references: [id])
-  tournament Tournament? @relation(fields: [tournamentId], references: [id])
-  match      Match?      @relation(fields: [matchId], references: [id])
-  redemption Redemption? @relation(fields: [redemptionId], references: [id])
-  createdBy  User?       @relation("PointsTransactionCreatedBy", fields: [createdByUserId], references: [id])
+  user             User              @relation("PointsTransactionUser", fields: [userId], references: [id])
+  tournament       Tournament?       @relation(fields: [tournamentId], references: [id])
+  match            Match?            @relation(fields: [matchId], references: [id])
+  redemption       Redemption?       @relation(fields: [redemptionId], references: [id])
+  userCosmeticItem UserCosmeticItem? @relation(fields: [userCosmeticItemId], references: [id])
+  createdBy        User?             @relation("PointsTransactionCreatedBy", fields: [createdByUserId], references: [id])
 
   @@index([userId, createdAt])
   @@map("points_transactions")
@@ -759,4 +787,50 @@ model XpTransaction {
 
   @@index([userId, createdAt])
   @@map("xp_transactions")
+}
+
+// Catálogo do armário cosmético, admin-managed — mesmo padrão de Game/
+// Achievement. unlockAchievementCode é referência solta (sem FK) a
+// Achievement.code, mesmo motivo de Report.contentId ser polimórfico sem
+// relation: item destravado por conquista em vez de comprável com pontos.
+model CosmeticItem {
+  id                    String         @id @default(cuid())
+  kind                  CosmeticKind
+  name                  String
+  description           String
+  rarity                CosmeticRarity @default(COMMON)
+  priceInPoints         Int            @map("price_in_points")
+  className             String?        @map("class_name")
+  unlockAchievementCode String?        @map("unlock_achievement_code")
+  isActive              Boolean        @default(true) @map("is_active")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  ownedBy              UserCosmeticItem[]
+  equippedAsFrameOn    Profile[]          @relation("ProfileEquippedFrame")
+  equippedAsTitleOn    Profile[]          @relation("ProfileEquippedTitle")
+
+  @@unique([kind, name])
+  @@map("cosmetic_items")
+}
+
+// Posse por COMPRA com pontos — só existe linha aqui quando priceInPoints
+// > 0. Itens grátis padrão (priceInPoints = 0, sem unlockAchievementCode) e
+// itens destravados por conquista são posse DERIVADA (checada contra
+// UserAchievement.code), nunca duplicada nesta tabela. userId sem relation
+// pra User (mesmo motivo de UserAchievement/Follow: RLS de users/profiles
+// não libera join cross-user fora de colega-de-torneio).
+model UserCosmeticItem {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  cosmeticItemId String   @map("cosmetic_item_id")
+  acquiredAt     DateTime @default(now()) @map("acquired_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  cosmeticItem      CosmeticItem       @relation(fields: [cosmeticItemId], references: [id])
+  pointsTransaction PointsTransaction?
+
+  @@unique([userId, cosmeticItemId])
+  @@index([userId])
+  @@map("user_cosmetic_items")
 }

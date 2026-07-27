@@ -45,6 +45,64 @@ const achievements = [
   },
 ];
 
+// Armário Cosmético (fatia 1: bordas + títulos) — nomes/preços/raridades
+// portados de src-lovable/pixel-palette-pal-07/src/lib/mock.ts, adaptados
+// pros enums CosmeticKind/CosmeticRarity do backend. `title-duelista`
+// (unlock por conquista) fica de fora nesta fatia: nenhum Achievement.code
+// existente mapeia pra ela ainda (decisão de conteúdo em aberto, ver
+// memory/project_cosmetic_locker_slice.md) — os itens "lendário" via
+// torneio Major/temporada também ficam fora (conceitos que não existem).
+const cosmeticItems = [
+  {
+    kind: 'FRAME' as const,
+    name: 'Aço Bruto',
+    description: 'Moldura padrão de aço escovado',
+    rarity: 'COMMON' as const,
+    priceInPoints: 0,
+    className: 'ring-2 ring-silver/40',
+  },
+  {
+    kind: 'FRAME' as const,
+    name: 'Brasa Viva',
+    description: 'Aro em brasa com pulso lento',
+    rarity: 'RARE' as const,
+    priceInPoints: 2200,
+    className: 'ring-2 ring-ember animate-ember-glow',
+  },
+  {
+    kind: 'FRAME' as const,
+    name: 'Presa do Lobo',
+    description: 'Recortes angulares inspirados no brasão',
+    rarity: 'EPIC' as const,
+    priceInPoints: 5400,
+    className: 'ring-4 ring-fuchsia-400/70',
+  },
+  {
+    kind: 'TITLE' as const,
+    name: 'Novato do Pampa',
+    description: 'Todo mundo começa aqui',
+    rarity: 'COMMON' as const,
+    priceInPoints: 0,
+  },
+  {
+    kind: 'TITLE' as const,
+    name: 'Rei da LAN',
+    description: 'Título de prestígio da casa',
+    rarity: 'EPIC' as const,
+    priceInPoints: 4500,
+  },
+];
+
+async function seedCosmeticItems(): Promise<void> {
+  for (const item of cosmeticItems) {
+    await seedPrisma.cosmeticItem.upsert({
+      where: { kind_name: { kind: item.kind, name: item.name } },
+      update: {},
+      create: item,
+    });
+  }
+}
+
 // Bootstrap de admin para primeiro uso/testes locais — não há outro jeito
 // de criar um ADMIN (cadastro público sempre cria PLAYER, de propósito, ver
 // RLS). Overridável via env para não deixar credencial fixa em ambientes
@@ -109,6 +167,7 @@ async function main(): Promise<void> {
     });
   }
 
+  await seedCosmeticItems();
   await seedAdmin();
   await seedCommunities();
 }
