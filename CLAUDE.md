@@ -955,6 +955,19 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   VIVO (recalculado a cada request); chat/comunidade mostram um SNAPSHOT
   congelado no momento do envio — mesma semântica que
   `senderDisplayName`/`authorDisplayName` já tinham.
+- **`PUT /tournaments/:id` não pode mais setar `IN_PROGRESS`/`COMPLETED`**:
+  bug real descoberto em produção local — o admin usava a troca rápida de
+  status (`useQuickStatusChange`, PUT genérico) pra mover um torneio de
+  `CHECKIN_OPEN` direto pra `IN_PROGRESS`, o que só troca o campo
+  `status` sem gerar `BracketSlot`/`Match` nenhum (só `POST
+  /tournaments/:id/start` faz isso de verdade). Resultado: o torneio
+  "Tekken 8 (cópia)" ficou marcado `IN_PROGRESS` pra sempre sem chave.
+  `updateTournamentSchema` (`tournaments.schemas.ts`) agora restringe
+  `status` a `MANUALLY_SETTABLE_STATUSES` (tudo exceto `IN_PROGRESS`/
+  `COMPLETED`) via `.refine`, rejeitando com 400 — essas duas transições
+  só acontecem pelos fluxos dedicados (`POST /:id/start`/`POST
+  /:id/complete`). Ver bullet correspondente em "Padrões do frontend"
+  pros botões que substituem a troca rápida pra esses dois casos.
 
 ## Padrões do frontend (apps/web)
 
@@ -1504,6 +1517,29 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   e no `accent` do `PageHeader`, mesmo padrão de não-duplicação do mock.
   Componente é compartilhado com `PublicProfilePage.tsx`, então o fix
   vale pras duas telas.
+- **Botões dedicados pra iniciar/encerrar torneio** (ver bullet
+  correspondente em "Padrões do backend"): "Gerar chaves e iniciar"
+  (`AdminTournamentsPage.tsx`, `useStartTournament` novo em
+  `useAdminTournamentMutations.ts`, chama `POST /tournaments/:id/start`)
+  aparece só quando `status === CHECKIN_OPEN`, ao lado das ações rápidas
+  de status; "Encerrar torneio" (`BracketPage.tsx`, `useCompleteTournament`
+  novo) aparece só quando `status === IN_PROGRESS` **e** a chave já tem
+  campeão (`columns.champion?.registration`), ao lado do banner de
+  campeão — usa `tournamentJustCompleted` (já existia em
+  `useBracketSocket`, sem uso até agora) pra mostrar um banner de sucesso
+  sem precisar de refetch adicional. `QUICK_STATUS_ACTIONS`
+  (`tournament-status-actions.ts`) ganhou só um comentário atualizado
+  explicando por que essas duas transições não estão mais na lista de
+  troca rápida — o mapeamento em si não mudou (`CHECKIN_OPEN ->
+  IN_PROGRESS` nunca esteve nele). Testado fim a fim via script Node
+  ad-hoc (`fetch`, não fica no repo) + `claude-in-chrome`: torneio de
+  teste `CHECKIN_OPEN` com 2 players confirmados/checked-in, `PUT` com
+  `status: 'IN_PROGRESS'`/`'COMPLETED'` confirmados 400 via API, botão
+  "Gerar chaves e iniciar" gerando a chave de verdade (bracket com 1
+  partida visível), registro de resultado, banner de campeão, "Encerrar
+  torneio" confirmado via API deixando o torneio `COMPLETED`. Dados de
+  teste (`tfixp1`/`tfixp2` + os 2 torneios `Torneio Fix Start Complete A`)
+  removidos via `psql` direto.
 - **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda):
   `PublicProfilePage.tsx` não recebeu a mesma reorganização de layout
   desta sessão (só o card de perfil da fatia do Armário Cosmético já

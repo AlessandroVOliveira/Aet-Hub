@@ -6,6 +6,7 @@ import type {
   TournamentDetail,
   UpdateTournamentPayload,
 } from '@/types/tournament';
+import type { GetBracketResponse } from '@/types/bracket';
 
 export function listAdminTournaments(token: string): Promise<GetTournamentsResponse> {
   return apiRequest('/tournaments', { method: 'GET', token });
@@ -32,6 +33,20 @@ export function updateAdminTournament(
 
 export function deleteAdminTournament(token: string, id: string): Promise<void> {
   return apiRequest(`/tournaments/${id}`, { method: 'DELETE', token });
+}
+
+// Gera a chave (sorteio + BracketSlot/Match da rodada 1) e move o torneio
+// pra IN_PROGRESS numa única operação atômica no backend — nunca fazer isso
+// via updateAdminTournament (PUT genérico), que não gera chave nenhuma.
+export function startAdminTournament(token: string, id: string): Promise<GetBracketResponse> {
+  return apiRequest(`/tournaments/${id}/start`, { method: 'POST', token });
+}
+
+// Calcula colocação final/pontos/XP/conquistas e move o torneio pra
+// COMPLETED — backend rejeita (409) se a partida final ainda não tiver
+// resultado registrado, então não há checagem client-side equivalente aqui.
+export function completeAdminTournament(token: string, id: string): Promise<void> {
+  return apiRequest(`/tournaments/${id}/complete`, { method: 'POST', token });
 }
 
 // Ponto único de conversão de um TournamentDetail (leitura) para um payload

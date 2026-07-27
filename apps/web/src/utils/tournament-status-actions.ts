@@ -6,11 +6,13 @@ interface QuickStatusAction {
   destructive?: boolean;
 }
 
-// Só as transições "normais" da progressão de um torneio. CHECKIN_OPEN ->
-// IN_PROGRESS fica de fora (é o fluxo já existente POST /:id/start, fora
-// de escopo). Cancelar só é oferecido antes de IN_PROGRESS — cancelar com
-// chave já gerada tem efeitos colaterais em Match/Registration não
-// modelados aqui.
+// Só as transições "normais" da progressão de um torneio, feitas via PUT
+// genérico (updateAdminTournament). CHECKIN_OPEN -> IN_PROGRESS fica de fora
+// de propósito — esse botão vive em AdminTournamentsPage.tsx
+// (useStartTournament, POST /:id/start), porque gera a chave de verdade
+// (BracketSlot/Match), o que o PUT genérico nunca faz. Cancelar só é
+// oferecido antes de IN_PROGRESS — cancelar com chave já gerada tem efeitos
+// colaterais em Match/Registration não modelados aqui.
 export const QUICK_STATUS_ACTIONS: Partial<Record<TournamentStatus, QuickStatusAction[]>> = {
   DRAFT: [
     { label: 'Abrir inscrições', next: 'REGISTRATION_OPEN' },

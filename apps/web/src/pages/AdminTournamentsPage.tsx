@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminTournaments } from '@/hooks/useAdminTournaments';
-import { useDeleteTournament, useQuickStatusChange } from '@/hooks/useAdminTournamentMutations';
+import {
+  useDeleteTournament,
+  useQuickStatusChange,
+  useStartTournament,
+} from '@/hooks/useAdminTournamentMutations';
 import { QUICK_STATUS_ACTIONS } from '@/utils/tournament-status-actions';
 import { formatDate, tournamentStatusLabels, tournamentStatusTone } from '@/utils/format';
 import { ApiError } from '@/services/http';
@@ -13,6 +17,7 @@ import type { TournamentStatus } from '@/types/tournament';
 export function AdminTournamentsPage() {
   const { data, isLoading, isError, error } = useAdminTournaments();
   const quickStatusChange = useQuickStatusChange();
+  const startTournament = useStartTournament();
   const deleteTournament = useDeleteTournament();
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -21,6 +26,27 @@ export function AdminTournamentsPage() {
     setActionError(null);
     quickStatusChange.mutate(
       { id, status: next },
+      {
+        onError: (mutationError) => {
+          setActionError(
+            mutationError instanceof ApiError ? mutationError.message : 'Erro inesperado',
+          );
+        },
+      },
+    );
+  }
+
+  function handleStartTournament(id: string) {
+    if (
+      !window.confirm(
+        'Gerar chaves e iniciar torneio? O sorteio dos confrontos é feito agora e não pode ser desfeito.',
+      )
+    ) {
+      return;
+    }
+    setActionError(null);
+    startTournament.mutate(
+      { id },
       {
         onError: (mutationError) => {
           setActionError(
@@ -136,6 +162,16 @@ export function AdminTournamentsPage() {
                           >
                             Chaveamento
                           </Link>
+                        )}
+                        {tournament.status === 'CHECKIN_OPEN' && (
+                          <button
+                            type="button"
+                            disabled={startTournament.isPending}
+                            onClick={() => handleStartTournament(tournament.id)}
+                            className="px-2 py-1 bg-navy-dark ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase disabled:opacity-60"
+                          >
+                            Gerar chaves e iniciar
+                          </button>
                         )}
                         {(QUICK_STATUS_ACTIONS[tournament.status] ?? []).map((action) => (
                           <button

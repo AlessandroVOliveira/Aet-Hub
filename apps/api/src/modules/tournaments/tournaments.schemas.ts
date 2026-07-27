@@ -88,7 +88,27 @@ function applyCrossFieldValidation(
 export const createTournamentSchema = tournamentFieldsSchema.superRefine(applyCrossFieldValidation);
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
 
+// IN_PROGRESS/COMPLETED nunca são setáveis por este PUT genérico — só pelos
+// fluxos dedicados (POST /:id/start, que gera a chave, e POST /:id/complete,
+// que calcula colocação/pontos/XP). Um PUT que aceitasse esses dois valores
+// deixaria o torneio "iniciado" sem nenhum BracketSlot/Match (foi assim que
+// o torneio "Tekken 8 (cópia)" ficou com chave nunca gerada).
+const MANUALLY_SETTABLE_STATUSES: TournamentStatus[] = [
+  TournamentStatus.DRAFT,
+  TournamentStatus.REGISTRATION_OPEN,
+  TournamentStatus.REGISTRATION_CLOSED,
+  TournamentStatus.CHECKIN_OPEN,
+  TournamentStatus.CANCELLED,
+];
+
 export const updateTournamentSchema = tournamentFieldsSchema
-  .extend({ status: z.nativeEnum(TournamentStatus).optional() })
+  .extend({
+    status: z
+      .nativeEnum(TournamentStatus)
+      .refine((status) => MANUALLY_SETTABLE_STATUSES.includes(status), {
+        message: 'Este status só pode ser definido pelos fluxos de iniciar/encerrar torneio',
+      })
+      .optional(),
+  })
   .superRefine(applyCrossFieldValidation);
 export type UpdateTournamentInput = z.infer<typeof updateTournamentSchema>;
