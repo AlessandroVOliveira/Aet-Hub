@@ -467,11 +467,19 @@ model TournamentPhoto {
 // (ver CLAUDE.md) — denormalizar evita os dois problemas. Rename de
 // displayName não retroage em mensagens antigas (semântica de snapshot).
 model ChatMessage {
-  id                String   @id @default(cuid())
-  userId            String   @map("user_id")
-  senderDisplayName String   @map("sender_display_name")
-  content           String
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                    String          @id @default(cuid())
+  userId                String          @map("user_id")
+  senderDisplayName     String          @map("sender_display_name")
+  // Armário cosmético (fatia 2) — snapshot do loadout do remetente no
+  // momento do envio, mesma semântica de senderDisplayName (não retroage
+  // se o remetente trocar de borda/título depois). className/name/rarity
+  // direto, não FK pra cosmetic_items — mensagem antiga sobrevive mesmo
+  // que o item seja desativado/editado depois.
+  senderFrameClassName  String?         @map("sender_frame_class_name")
+  senderTitleName       String?         @map("sender_title_name")
+  senderTitleRarity     CosmeticRarity? @map("sender_title_rarity")
+  content               String
+  createdAt             DateTime        @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id])
 
@@ -559,12 +567,16 @@ model Community {
 // atravessando `user` — relação obrigatória invisível sob RLS quebra o
 // Prisma (ver CLAUDE.md).
 model Post {
-  id                String   @id @default(cuid())
-  communityId       String   @map("community_id")
-  userId            String   @map("user_id")
-  authorDisplayName String   @map("author_display_name")
-  content           String
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                    String          @id @default(cuid())
+  communityId           String          @map("community_id")
+  userId                String          @map("user_id")
+  authorDisplayName     String          @map("author_display_name")
+  // Armário cosmético (fatia 2) — mesmo snapshot de ChatMessage acima.
+  authorFrameClassName  String?         @map("author_frame_class_name")
+  authorTitleName       String?         @map("author_title_name")
+  authorTitleRarity     CosmeticRarity? @map("author_title_rarity")
+  content               String
+  createdAt             DateTime        @default(now()) @map("created_at")
 
   community Community  @relation(fields: [communityId], references: [id])
   user      User       @relation(fields: [userId], references: [id])
@@ -579,12 +591,16 @@ model Post {
 // excluir o post leva comentários junto (referential action não passa
 // pela RLS; intencional, ver migration de RLS).
 model Comment {
-  id                String   @id @default(cuid())
-  postId            String   @map("post_id")
-  userId            String   @map("user_id")
-  authorDisplayName String   @map("author_display_name")
-  content           String
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                    String          @id @default(cuid())
+  postId                String          @map("post_id")
+  userId                String          @map("user_id")
+  authorDisplayName     String          @map("author_display_name")
+  // Armário cosmético (fatia 2) — mesmo snapshot de ChatMessage/Post acima.
+  authorFrameClassName  String?         @map("author_frame_class_name")
+  authorTitleName       String?         @map("author_title_name")
+  authorTitleRarity     CosmeticRarity? @map("author_title_rarity")
+  content               String
+  createdAt             DateTime        @default(now()) @map("created_at")
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id])

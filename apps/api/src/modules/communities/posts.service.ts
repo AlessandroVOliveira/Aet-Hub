@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, type CosmeticRarity } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { AppError } from '../../utils/app-error.js';
 import type { AccessTokenPayload } from '../auth/jwt.js';
@@ -14,6 +14,9 @@ export interface PostView {
   communityId: string;
   userId: string;
   authorDisplayName: string;
+  authorFrameClassName: string | null;
+  authorTitleName: string | null;
+  authorTitleRarity: CosmeticRarity | null;
   content: string;
   createdAt: Date;
   commentCount: number;
@@ -26,6 +29,9 @@ interface PostWithCounts {
   communityId: string;
   userId: string;
   authorDisplayName: string;
+  authorFrameClassName: string | null;
+  authorTitleName: string | null;
+  authorTitleRarity: CosmeticRarity | null;
   content: string;
   createdAt: Date;
   _count: { comments: number; likes: number };
@@ -37,6 +43,9 @@ function toPostView(post: PostWithCounts, likedByMe: boolean): PostView {
     communityId: post.communityId,
     userId: post.userId,
     authorDisplayName: post.authorDisplayName,
+    authorFrameClassName: post.authorFrameClassName,
+    authorTitleName: post.authorTitleName,
+    authorTitleRarity: post.authorTitleRarity,
     content: post.content,
     createdAt: post.createdAt,
     commentCount: post._count.comments,
@@ -85,6 +94,9 @@ export async function createPost(
       communityId,
       userId: actor.id,
       authorDisplayName: profile.displayName,
+      authorFrameClassName: profile.equippedFrame?.className ?? null,
+      authorTitleName: profile.equippedTitle?.name ?? null,
+      authorTitleRarity: profile.equippedTitle?.rarity ?? null,
       content: input.content,
     });
 
@@ -145,6 +157,9 @@ export async function createComment(
         postId,
         userId: actor.id,
         authorDisplayName: profile.displayName,
+        authorFrameClassName: profile.equippedFrame?.className ?? null,
+        authorTitleName: profile.equippedTitle?.name ?? null,
+        authorTitleRarity: profile.equippedTitle?.rarity ?? null,
         content: input.content,
       });
 

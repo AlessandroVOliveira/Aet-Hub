@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { CosmeticRarity, Prisma } from '@prisma/client';
 
 // Todo método recebe a transação interativa aberta por withRls — nunca
 // importar o `prisma` singleton aqui.
@@ -15,6 +15,11 @@ export function listRecentMessages(tx: Prisma.TransactionClient) {
 export interface CreateChatMessageData {
   userId: string;
   senderDisplayName: string;
+  // Armário cosmético (fatia 2) — snapshot do loadout do remetente no
+  // momento do envio (não retroage, mesma semântica de senderDisplayName).
+  senderFrameClassName: string | null;
+  senderTitleName: string | null;
+  senderTitleRarity: CosmeticRarity | null;
   content: string;
 }
 

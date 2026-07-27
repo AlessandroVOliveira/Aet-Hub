@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { CosmeticRarity, Prisma } from '@prisma/client';
 
 // Todo método recebe a transação interativa aberta por withRls — nunca
 // importar o `prisma` singleton aqui. NUNCA incluir `user`/`post.user` —
@@ -25,6 +25,11 @@ export interface CreatePostData {
   communityId: string;
   userId: string;
   authorDisplayName: string;
+  // Armário cosmético (fatia 2) — snapshot do loadout do autor no momento
+  // do post (não retroage, mesma semântica de authorDisplayName).
+  authorFrameClassName: string | null;
+  authorTitleName: string | null;
+  authorTitleRarity: CosmeticRarity | null;
   content: string;
 }
 
@@ -55,6 +60,10 @@ export interface CreateCommentData {
   postId: string;
   userId: string;
   authorDisplayName: string;
+  // Mesmo snapshot de CreatePostData acima.
+  authorFrameClassName: string | null;
+  authorTitleName: string | null;
+  authorTitleRarity: CosmeticRarity | null;
   content: string;
 }
 

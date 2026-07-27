@@ -26,6 +26,9 @@ export async function sendMessage(actor: AccessTokenPayload, input: SendChatMess
     return chatRepository.createMessage(tx, {
       userId: actor.id,
       senderDisplayName: profile.displayName,
+      senderFrameClassName: profile.equippedFrame?.className ?? null,
+      senderTitleName: profile.equippedTitle?.name ?? null,
+      senderTitleRarity: profile.equippedTitle?.rarity ?? null,
       content: input.content,
     });
   });

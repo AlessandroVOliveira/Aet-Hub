@@ -135,11 +135,30 @@ export function findCompletedMatchesWithRound(tx: Prisma.TransactionClient, tour
 // Registration de A/B/winner: qr_code_token é o "ingresso" de checkin de
 // cada player e nunca deve ser exposto na visualização de chave/histórico
 // de outra pessoa.
+// equippedFrame/equippedTitle (armário cosmético, fatia 2): include Prisma
+// comum contra cosmetic_items, catálogo público sem RLS pra se preocupar —
+// visibilidade continua sendo a de profile (colega de torneio), não uma
+// leitura nova. Espectador sem registro no torneio já recebia
+// `registration: null` silenciosamente antes desta fatia (gotcha de
+// relação opcional + RLS documentado no CLAUDE.md) — comportamento
+// herdado, não é regressão.
 const registrationSeatSelect = {
   id: true,
   status: true,
   finalPlacement: true,
-  user: { select: { id: true, username: true, profile: { select: { displayName: true } } } },
+  user: {
+    select: {
+      id: true,
+      username: true,
+      profile: {
+        select: {
+          displayName: true,
+          equippedFrame: { select: { className: true } },
+          equippedTitle: { select: { name: true, rarity: true } },
+        },
+      },
+    },
+  },
 } satisfies Prisma.RegistrationSelect;
 
 export async function findBracketByTournamentId(
