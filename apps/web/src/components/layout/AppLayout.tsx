@@ -49,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin/usuarios', label: 'Admin Usuários', icon: Shield, adminOnly: true },
   { to: '/admin/auditoria', label: 'Admin Auditoria', icon: Shield, adminOnly: true },
   { to: '/admin/conquistas', label: 'Admin Conquistas', icon: Shield, adminOnly: true },
+  { to: '/admin/cosmeticos', label: 'Admin Cosméticos', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout() {

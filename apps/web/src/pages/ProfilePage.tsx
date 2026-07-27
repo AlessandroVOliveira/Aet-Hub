@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyHistory } from '@/hooks/useMyHistory';
@@ -9,7 +10,9 @@ import { Banner } from '@/components/ui/Banner';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { LevelProgressBar } from '@/components/LevelProgressBar';
 import { AchievementsList } from '@/components/AchievementsList';
+import { CosmeticCloset } from '@/components/CosmeticCloset';
 import {
+  cosmeticRarityStyle,
   formatDate,
   matchResultLabels,
   matchResultTone,
@@ -22,6 +25,7 @@ interface LocationState {
 }
 
 export function ProfilePage() {
+  const [tab, setTab] = useState<'overview' | 'closet'>('overview');
   const profileQuery = useMyProfile();
   const historyQuery = useMyHistory();
   const xpQuery = useMyXp();
@@ -49,12 +53,21 @@ export function ProfilePage() {
         accent={xpQuery.data ? `LVL ${xpQuery.data.progress.level}` : undefined}
         description={profile?.bio ?? undefined}
         actions={
-          <Link
-            to="/perfil/editar"
-            className="bg-navy-light ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase tracking-widest px-4 py-2 transition"
-          >
-            Editar perfil
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTab(tab === 'closet' ? 'overview' : 'closet')}
+              className="bg-ember hover:bg-ember-glow text-white font-display italic uppercase text-xs tracking-widest px-4 py-2 transition"
+            >
+              {tab === 'closet' ? 'Voltar' : 'Personalizar'}
+            </button>
+            <Link
+              to="/perfil/editar"
+              className="bg-navy-light ring-1 ring-silver/20 hover:ring-ember/40 font-mono text-[10px] uppercase tracking-widest px-4 py-2 transition"
+            >
+              Editar perfil
+            </Link>
+          </div>
         }
       />
 
@@ -83,41 +96,54 @@ export function ProfilePage() {
 
         {profileQuery.isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
 
-        {profile && (
+        {profile && tab === 'overview' && (
           <div className="flex flex-wrap items-center gap-6">
             {profile.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
                 alt={profile.displayName}
-                className="size-20 object-cover ring-1 ring-silver/20"
+                className={`size-20 object-cover ${profile.equippedFrame?.className ?? 'ring-1 ring-silver/20'}`}
               />
             ) : (
-              <div className="size-20 bg-ember/20 ring-1 ring-ember/40 grid place-items-center font-display italic text-3xl shrink-0">
+              <div
+                className={`size-20 bg-ember/20 grid place-items-center font-display italic text-3xl shrink-0 ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
+              >
                 {profile.displayName[0]?.toUpperCase() ?? profile.user.username[0]?.toUpperCase()}
               </div>
             )}
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2 font-mono text-xs">
-              <div>
-                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                  Jogo favorito
-                </dt>
-                <dd className="mt-1">{profile.favoriteGame?.name ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                  Personagem favorito
-                </dt>
-                <dd className="mt-1">{profile.favoriteCharacter ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-silver-muted uppercase tracking-widest text-[10px]">Tema</dt>
-                <dd className="mt-1">{profile.theme ?? '—'}</dd>
-              </div>
-            </dl>
+            <div className="flex flex-col gap-3">
+              {profile.equippedTitle && (
+                <span
+                  className={`self-start px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
+                >
+                  {profile.equippedTitle.name}
+                </span>
+              )}
+              <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2 font-mono text-xs">
+                <div>
+                  <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
+                    Jogo favorito
+                  </dt>
+                  <dd className="mt-1">{profile.favoriteGame?.name ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
+                    Personagem favorito
+                  </dt>
+                  <dd className="mt-1">{profile.favoriteCharacter ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-silver-muted uppercase tracking-widest text-[10px]">Tema</dt>
+                  <dd className="mt-1">{profile.theme ?? '—'}</dd>
+                </div>
+              </dl>
+            </div>
           </div>
         )}
 
-        {xpQuery.data && (
+        {tab === 'closet' && <CosmeticCloset />}
+
+        {tab === 'overview' && xpQuery.data && (
           <section>
             <h2 className="font-mono text-[10px] uppercase tracking-widest text-silver-muted mb-3">
               Nível &amp; conquistas
@@ -131,6 +157,8 @@ export function ProfilePage() {
           </section>
         )}
 
+        {tab === 'overview' && (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <section>
             <h2 className="font-mono text-[10px] uppercase tracking-widest text-silver-muted mb-3">
@@ -274,6 +302,8 @@ export function ProfilePage() {
             </div>
           )}
         </section>
+        </>
+        )}
       </div>
     </div>
   );

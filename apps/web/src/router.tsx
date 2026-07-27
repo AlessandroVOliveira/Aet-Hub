@@ -38,6 +38,8 @@ import { AdminUserEditPage } from '@/pages/AdminUserEditPage';
 import { AdminAuditLogsPage } from '@/pages/AdminAuditLogsPage';
 import { AdminAchievementsPage } from '@/pages/AdminAchievementsPage';
 import { AdminAchievementFormPage } from '@/pages/AdminAchievementFormPage';
+import { AdminCosmeticsPage } from '@/pages/AdminCosmeticsPage';
+import { AdminCosmeticFormPage } from '@/pages/AdminCosmeticFormPage';
 
 export const router = createBrowserRouter([
   {
@@ -91,6 +93,9 @@ export const router = createBrowserRouter([
               { path: '/admin/conquistas', element: <AdminAchievementsPage /> },
               { path: '/admin/conquistas/novo', element: <AdminAchievementFormPage /> },
               { path: '/admin/conquistas/:id/editar', element: <AdminAchievementFormPage /> },
+              { path: '/admin/cosmeticos', element: <AdminCosmeticsPage /> },
+              { path: '/admin/cosmeticos/novo', element: <AdminCosmeticFormPage /> },
+              { path: '/admin/cosmeticos/:id/editar', element: <AdminCosmeticFormPage /> },
             ],
           },
         ],

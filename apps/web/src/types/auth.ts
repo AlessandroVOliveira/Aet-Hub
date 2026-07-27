@@ -1,3 +1,5 @@
+import type { CosmeticItem } from './cosmetic';
+
 export type Role = 'PLAYER' | 'ADMIN';
 
 export interface AuthUser {
@@ -44,6 +46,8 @@ export interface UserProfile {
   updatedAt: string;
   favoriteGame: { id: string; name: string; slug: string } | null;
   user: { id: string; username: string; email: string };
+  equippedFrame: CosmeticItem | null;
+  equippedTitle: CosmeticItem | null;
 }
 
 export interface GetMeResponse {

@@ -1,4 +1,5 @@
 import type { CheckinMethod } from '@/types/checkin';
+import type { CosmeticRarity } from '@/types/cosmetic';
 import type { MatchResult } from '@/types/profile';
 import type { RegistrationStatus } from '@/types/registration';
 import type { RedemptionStatus } from '@/types/store';
@@ -177,6 +178,23 @@ export const AUDIT_LOG_ACTION_OPTIONS = Object.keys(auditLogActionLabels) as Aud
 export const AUDIT_LOG_ENTITY_TYPE_OPTIONS = Object.keys(
   auditLogEntityTypeLabels,
 ) as AuditLogEntityType[];
+
+// Armário Cosmético — 4 níveis de raridade, não cabem no sistema de 3 tons
+// do StatusChip (accent/live/muted): classes Tailwind diretas, mesmo papel
+// do `rarityStyle` de src-lovable/pixel-palette-pal-07/src/lib/mock.ts.
+export const cosmeticRarityLabels: Record<CosmeticRarity, string> = {
+  COMMON: 'Comum',
+  RARE: 'Raro',
+  EPIC: 'Épico',
+  LEGENDARY: 'Lendário',
+};
+
+export const cosmeticRarityStyle: Record<CosmeticRarity, string> = {
+  COMMON: 'text-silver-muted ring-silver/20',
+  RARE: 'text-sky-300 ring-sky-400/40',
+  EPIC: 'text-fuchsia-300 ring-fuchsia-400/40',
+  LEGENDARY: 'text-ember ring-ember/50',
+};
 
 // RF-16 — só renderiza um chip quando o usuário está excluído (soft
 // delete); null significa "não mostrar nada", diferente de
