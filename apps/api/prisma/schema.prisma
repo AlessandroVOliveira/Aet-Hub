@@ -109,8 +109,9 @@ enum XpTransactionType {
 }
 
 // Todos os 6 slots do armário cosmético de uma vez (mesmo espírito de
-// ReportedContentType cobrir os 5 tipos de conteúdo de uma vez) — só FRAME/
-// TITLE têm item de catálogo nesta fatia, os demais aguardam fatias futuras.
+// ReportedContentType cobrir os 5 tipos de conteúdo de uma vez) — FRAME/
+// TITLE/FONT/MASCOT têm item de catálogo; BANNER/EFFECT aguardam fatias
+// futuras.
 enum CosmeticKind {
   FRAME
   BANNER
@@ -175,6 +176,8 @@ model Profile {
   bio               String?
   equippedFrameId   String?  @map("equipped_frame_id")
   equippedTitleId   String?  @map("equipped_title_id")
+  equippedFontId    String?  @map("equipped_font_id")
+  equippedMascotId  String?  @map("equipped_mascot_id")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -182,6 +185,8 @@ model Profile {
   favoriteGame Game?          @relation(fields: [favoriteGameId], references: [id])
   equippedFrame CosmeticItem? @relation("ProfileEquippedFrame", fields: [equippedFrameId], references: [id])
   equippedTitle CosmeticItem? @relation("ProfileEquippedTitle", fields: [equippedTitleId], references: [id])
+  equippedFont   CosmeticItem? @relation("ProfileEquippedFont", fields: [equippedFontId], references: [id])
+  equippedMascot CosmeticItem? @relation("ProfileEquippedMascot", fields: [equippedMascotId], references: [id])
 
   @@map("profiles")
 }
@@ -478,6 +483,9 @@ model ChatMessage {
   senderFrameClassName  String?         @map("sender_frame_class_name")
   senderTitleName       String?         @map("sender_title_name")
   senderTitleRarity     CosmeticRarity? @map("sender_title_rarity")
+  // Armário cosmético (fatia 3) — mesmo snapshot acima, só fonte (mascote
+  // fica de fora do chat: emoji ilegível na escala do PlayerBadge, 24px).
+  senderFontClassName   String?         @map("sender_font_class_name")
   content               String
   createdAt             DateTime        @default(now()) @map("created_at")
 
@@ -575,6 +583,9 @@ model Post {
   authorFrameClassName  String?         @map("author_frame_class_name")
   authorTitleName       String?         @map("author_title_name")
   authorTitleRarity     CosmeticRarity? @map("author_title_rarity")
+  // Armário cosmético (fatia 3) — mesmo snapshot acima, só fonte (mascote
+  // fica de fora, mesma razão de ChatMessage acima).
+  authorFontClassName   String?         @map("author_font_class_name")
   content               String
   createdAt             DateTime        @default(now()) @map("created_at")
 
@@ -599,6 +610,9 @@ model Comment {
   authorFrameClassName  String?         @map("author_frame_class_name")
   authorTitleName       String?         @map("author_title_name")
   authorTitleRarity     CosmeticRarity? @map("author_title_rarity")
+  // Armário cosmético (fatia 3) — mesmo snapshot acima, só fonte (mascote
+  // fica de fora, mesma razão de ChatMessage acima).
+  authorFontClassName   String?         @map("author_font_class_name")
   content               String
   createdAt             DateTime        @default(now()) @map("created_at")
 
@@ -817,6 +831,9 @@ model CosmeticItem {
   rarity                CosmeticRarity @default(COMMON)
   priceInPoints         Int            @map("price_in_points")
   className             String?        @map("class_name")
+  // Sprite do mascote (emoji) — só usado em kind MASCOT, mesmo espírito de
+  // className ser só usado em FRAME/MASCOT (utilitário Tailwind/animação).
+  emoji                 String?
   unlockAchievementCode String?        @map("unlock_achievement_code")
   isActive              Boolean        @default(true) @map("is_active")
   createdAt             DateTime       @default(now()) @map("created_at")
@@ -825,6 +842,8 @@ model CosmeticItem {
   ownedBy              UserCosmeticItem[]
   equippedAsFrameOn    Profile[]          @relation("ProfileEquippedFrame")
   equippedAsTitleOn    Profile[]          @relation("ProfileEquippedTitle")
+  equippedAsFontOn     Profile[]          @relation("ProfileEquippedFont")
+  equippedAsMascotOn   Profile[]          @relation("ProfileEquippedMascot")
 
   @@unique([kind, name])
   @@map("cosmetic_items")

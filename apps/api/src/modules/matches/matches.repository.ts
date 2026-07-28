@@ -155,6 +155,9 @@ const registrationSeatSelect = {
           displayName: true,
           equippedFrame: { select: { className: true } },
           equippedTitle: { select: { name: true, rarity: true } },
+          // Armário cosmético (fatia 3) — só fonte, sem mascote (chave usa
+          // PlayerBadge, mesmo motivo de exclusão do ranking.repository.ts).
+          equippedFont: { select: { className: true } },
         },
       },
     },

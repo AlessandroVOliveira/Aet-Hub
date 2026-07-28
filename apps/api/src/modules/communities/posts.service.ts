@@ -17,6 +17,7 @@ export interface PostView {
   authorFrameClassName: string | null;
   authorTitleName: string | null;
   authorTitleRarity: CosmeticRarity | null;
+  authorFontClassName: string | null;
   content: string;
   createdAt: Date;
   commentCount: number;
@@ -32,6 +33,7 @@ interface PostWithCounts {
   authorFrameClassName: string | null;
   authorTitleName: string | null;
   authorTitleRarity: CosmeticRarity | null;
+  authorFontClassName: string | null;
   content: string;
   createdAt: Date;
   _count: { comments: number; likes: number };
@@ -46,6 +48,7 @@ function toPostView(post: PostWithCounts, likedByMe: boolean): PostView {
     authorFrameClassName: post.authorFrameClassName,
     authorTitleName: post.authorTitleName,
     authorTitleRarity: post.authorTitleRarity,
+    authorFontClassName: post.authorFontClassName,
     content: post.content,
     createdAt: post.createdAt,
     commentCount: post._count.comments,
@@ -97,6 +100,7 @@ export async function createPost(
       authorFrameClassName: profile.equippedFrame?.className ?? null,
       authorTitleName: profile.equippedTitle?.name ?? null,
       authorTitleRarity: profile.equippedTitle?.rarity ?? null,
+      authorFontClassName: profile.equippedFont?.className ?? null,
       content: input.content,
     });
 
@@ -160,6 +164,7 @@ export async function createComment(
         authorFrameClassName: profile.equippedFrame?.className ?? null,
         authorTitleName: profile.equippedTitle?.name ?? null,
         authorTitleRarity: profile.equippedTitle?.rarity ?? null,
+        authorFontClassName: profile.equippedFont?.className ?? null,
         content: input.content,
       });
 

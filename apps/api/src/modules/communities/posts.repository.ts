@@ -30,6 +30,9 @@ export interface CreatePostData {
   authorFrameClassName: string | null;
   authorTitleName: string | null;
   authorTitleRarity: CosmeticRarity | null;
+  // Armário cosmético (fatia 3) — só fonte, sem mascote (mesmo racional de
+  // chat.repository.ts).
+  authorFontClassName: string | null;
   content: string;
 }
 
@@ -64,6 +67,9 @@ export interface CreateCommentData {
   authorFrameClassName: string | null;
   authorTitleName: string | null;
   authorTitleRarity: CosmeticRarity | null;
+  // Armário cosmético (fatia 3) — só fonte, sem mascote (mesmo racional de
+  // chat.repository.ts).
+  authorFontClassName: string | null;
   content: string;
 }
 

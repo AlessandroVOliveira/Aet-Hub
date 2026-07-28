@@ -45,13 +45,18 @@ const achievements = [
   },
 ];
 
-// Armário Cosmético (fatia 1: bordas + títulos) — nomes/preços/raridades
-// portados de src-lovable/pixel-palette-pal-07/src/lib/mock.ts, adaptados
-// pros enums CosmeticKind/CosmeticRarity do backend. `title-duelista`
-// (unlock por conquista) fica de fora nesta fatia: nenhum Achievement.code
-// existente mapeia pra ela ainda (decisão de conteúdo em aberto, ver
+// Armário Cosmético (fatia 1: bordas + títulos; fatia 3: fontes + mascotes)
+// — nomes/preços/raridades portados de
+// src-lovable/pixel-palette-pal-07/src/lib/mock.ts, adaptados pros enums
+// CosmeticKind/CosmeticRarity do backend. `title-duelista` (unlock por
+// conquista) fica de fora: nenhum Achievement.code existente mapeia pra
+// ela ainda (decisão de conteúdo em aberto, ver
 // memory/project_cosmetic_locker_slice.md) — os itens "lendário" via
-// torneio Major/temporada também ficam fora (conceitos que não existem).
+// torneio Major/temporada também ficam fora (conceitos que não existem),
+// incluindo o mascote "Dragãozinho Brasa" (unlock "Vença um torneio
+// Major"). O mascote "Sem mascote" do mock também fica fora: não é um
+// item comprável/equipável de catálogo, é só o estado null de
+// equippedMascotId (mesma semântica de moldura/título sem equip).
 const cosmeticItems = [
   {
     kind: 'FRAME' as const,
@@ -90,6 +95,75 @@ const cosmeticItems = [
     description: 'Título de prestígio da casa',
     rarity: 'EPIC' as const,
     priceInPoints: 4500,
+  },
+  {
+    kind: 'FONT' as const,
+    name: 'Anton Impacto',
+    description: 'Tag em display itálico',
+    rarity: 'COMMON' as const,
+    priceInPoints: 0,
+    className: 'font-display italic',
+  },
+  {
+    kind: 'FONT' as const,
+    name: 'Terminal AET',
+    description: 'Tag em monoespaçada técnica',
+    rarity: 'RARE' as const,
+    priceInPoints: 1600,
+    className: 'font-mono tracking-tight',
+  },
+  {
+    kind: 'FONT' as const,
+    name: 'Placar Wide',
+    description: 'Espaçamento largo de arena',
+    rarity: 'EPIC' as const,
+    priceInPoints: 3900,
+    className: 'font-display italic tracking-[0.25em]',
+  },
+  {
+    kind: 'MASCOT' as const,
+    name: 'Lobinho AET',
+    description: 'O filhote do brasão te acompanha',
+    rarity: 'COMMON' as const,
+    priceInPoints: 900,
+    emoji: '🐺',
+    className: 'animate-mascot-bounce',
+  },
+  {
+    kind: 'MASCOT' as const,
+    name: 'Mini Lutador',
+    description: 'Karateca soltando hadouken',
+    rarity: 'RARE' as const,
+    priceInPoints: 2600,
+    emoji: '🥋',
+    className: 'animate-mascot-bounce',
+  },
+  {
+    kind: 'MASCOT' as const,
+    name: 'Mini Encanador',
+    description: 'Pula sem parar no canto do avatar',
+    rarity: 'RARE' as const,
+    priceInPoints: 3100,
+    emoji: '🍄',
+    className: 'animate-mascot-bounce',
+  },
+  {
+    kind: 'MASCOT' as const,
+    name: 'Fantasminha Arcade',
+    description: 'Flutua de leve ao lado da foto',
+    rarity: 'EPIC' as const,
+    priceInPoints: 5600,
+    emoji: '👻',
+    className: 'animate-mascot-float',
+  },
+  {
+    kind: 'MASCOT' as const,
+    name: 'Bot de Fronteira',
+    description: 'Droide vibrando em stand-by',
+    rarity: 'EPIC' as const,
+    priceInPoints: 6200,
+    emoji: '🤖',
+    className: 'animate-mascot-float',
   },
 ];
 

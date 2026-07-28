@@ -29,6 +29,7 @@ export async function sendMessage(actor: AccessTokenPayload, input: SendChatMess
       senderFrameClassName: profile.equippedFrame?.className ?? null,
       senderTitleName: profile.equippedTitle?.name ?? null,
       senderTitleRarity: profile.equippedTitle?.rarity ?? null,
+      senderFontClassName: profile.equippedFont?.className ?? null,
       content: input.content,
     });
   });

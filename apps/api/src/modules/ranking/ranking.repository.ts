@@ -16,6 +16,7 @@ interface LeaderboardRow {
   position: bigint;
   equipped_frame_id: string | null;
   equipped_title_id: string | null;
+  equipped_font_id: string | null;
 }
 
 export interface LeaderboardEntry {
@@ -26,6 +27,11 @@ export interface LeaderboardEntry {
   position: number;
   frame: { className: string | null } | null;
   title: { name: string; rarity: CosmeticRarity } | null;
+  // Sem mascote aqui de propósito (armário cosmético, fatia 3) — ranking
+  // usa PlayerBadge, um avatar de 24px, escala pequena demais pro emoji
+  // do mascote (desenhado a ~24px sobre um avatar de 96px no design de
+  // referência); mascote fica restrito a /perfil e /perfil/:userId.
+  font: { className: string | null } | null;
 }
 
 export async function getLeaderboard(
@@ -39,9 +45,9 @@ export async function getLeaderboard(
   // users.service.ts#getPublicProfile.
   const cosmeticIds = [
     ...new Set(
-      rows.flatMap((row) => [row.equipped_frame_id, row.equipped_title_id]).filter(
-        (id): id is string => id !== null,
-      ),
+      rows
+        .flatMap((row) => [row.equipped_frame_id, row.equipped_title_id, row.equipped_font_id])
+        .filter((id): id is string => id !== null),
     ),
   ];
   const cosmeticItems = await cosmeticsRepository.findCosmeticItemsByIds(tx, cosmeticIds);
@@ -52,6 +58,7 @@ export async function getLeaderboard(
   return rows.map((row) => {
     const frame = row.equipped_frame_id ? cosmeticById.get(row.equipped_frame_id) : undefined;
     const title = row.equipped_title_id ? cosmeticById.get(row.equipped_title_id) : undefined;
+    const font = row.equipped_font_id ? cosmeticById.get(row.equipped_font_id) : undefined;
     return {
       userId: row.user_id,
       username: row.username,
@@ -60,6 +67,7 @@ export async function getLeaderboard(
       position: Number(row.position),
       frame: frame ? { className: frame.className } : null,
       title: title ? { name: title.name, rarity: title.rarity } : null,
+      font: font ? { className: font.className } : null,
     };
   });
 }

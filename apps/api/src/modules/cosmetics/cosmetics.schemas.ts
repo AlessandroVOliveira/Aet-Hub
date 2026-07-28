@@ -7,6 +7,10 @@ const cosmeticItemFieldsSchema = z.object({
   rarity: z.enum(['COMMON', 'RARE', 'EPIC', 'LEGENDARY']).default('COMMON'),
   priceInPoints: z.number().int().min(0, 'Preço não pode ser negativo'),
   className: z.string().trim().max(200).optional(),
+  // Sprite do mascote (emoji) — só usado em kind MASCOT, mesmo espírito de
+  // className ser livre e sem validação de conteúdo (o pior caso de um
+  // valor incomum aqui é renderizar texto errado, não quebrar nada).
+  emoji: z.string().trim().max(16).optional(),
   // Referência solta a Achievement.code (sem FK) — item destravado por
   // conquista em vez de comprável com pontos, ver CLAUDE.md.
   unlockAchievementCode: z.string().trim().max(60).optional(),
@@ -33,5 +37,7 @@ export type PurchaseCosmeticItemInput = z.infer<typeof purchaseCosmeticItemSchem
 export const updateLoadoutSchema = z.object({
   frameId: z.string().trim().min(1).nullable().optional(),
   titleId: z.string().trim().min(1).nullable().optional(),
+  fontId: z.string().trim().min(1).nullable().optional(),
+  mascotId: z.string().trim().min(1).nullable().optional(),
 });
 export type UpdateLoadoutInput = z.infer<typeof updateLoadoutSchema>;

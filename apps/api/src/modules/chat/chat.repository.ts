@@ -20,6 +20,9 @@ export interface CreateChatMessageData {
   senderFrameClassName: string | null;
   senderTitleName: string | null;
   senderTitleRarity: CosmeticRarity | null;
+  // Armário cosmético (fatia 3) — só fonte, sem mascote (ver
+  // matches.repository.ts/ranking.repository.ts pro mesmo racional).
+  senderFontClassName: string | null;
   content: string;
 }
 
