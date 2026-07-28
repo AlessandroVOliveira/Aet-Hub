@@ -109,9 +109,8 @@ enum XpTransactionType {
 }
 
 // Todos os 6 slots do armário cosmético de uma vez (mesmo espírito de
-// ReportedContentType cobrir os 5 tipos de conteúdo de uma vez) — FRAME/
-// TITLE/FONT/MASCOT têm item de catálogo; BANNER/EFFECT aguardam fatias
-// futuras.
+// ReportedContentType cobrir os 5 tipos de conteúdo de uma vez) — todos
+// os 6 têm item de catálogo desde a fatia 4.
 enum CosmeticKind {
   FRAME
   BANNER
@@ -178,6 +177,8 @@ model Profile {
   equippedTitleId   String?  @map("equipped_title_id")
   equippedFontId    String?  @map("equipped_font_id")
   equippedMascotId  String?  @map("equipped_mascot_id")
+  equippedBannerId  String?  @map("equipped_banner_id")
+  equippedEffectId  String?  @map("equipped_effect_id")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -187,6 +188,8 @@ model Profile {
   equippedTitle CosmeticItem? @relation("ProfileEquippedTitle", fields: [equippedTitleId], references: [id])
   equippedFont   CosmeticItem? @relation("ProfileEquippedFont", fields: [equippedFontId], references: [id])
   equippedMascot CosmeticItem? @relation("ProfileEquippedMascot", fields: [equippedMascotId], references: [id])
+  equippedBanner CosmeticItem? @relation("ProfileEquippedBanner", fields: [equippedBannerId], references: [id])
+  equippedEffect CosmeticItem? @relation("ProfileEquippedEffect", fields: [equippedEffectId], references: [id])
 
   @@map("profiles")
 }
@@ -844,6 +847,8 @@ model CosmeticItem {
   equippedAsTitleOn    Profile[]          @relation("ProfileEquippedTitle")
   equippedAsFontOn     Profile[]          @relation("ProfileEquippedFont")
   equippedAsMascotOn   Profile[]          @relation("ProfileEquippedMascot")
+  equippedAsBannerOn   Profile[]          @relation("ProfileEquippedBanner")
+  equippedAsEffectOn   Profile[]          @relation("ProfileEquippedEffect")
 
   @@unique([kind, name])
   @@map("cosmetic_items")

@@ -14,6 +14,8 @@ const profileDetailInclude = {
   equippedTitle: true,
   equippedFont: true,
   equippedMascot: true,
+  equippedBanner: true,
+  equippedEffect: true,
 } satisfies Prisma.ProfileInclude;
 
 export function findProfileByUserId(tx: Prisma.TransactionClient, userId: string) {
@@ -31,6 +33,8 @@ export interface ProfileWriteData {
   equippedTitleId?: string | null;
   equippedFontId?: string | null;
   equippedMascotId?: string | null;
+  equippedBannerId?: string | null;
+  equippedEffectId?: string | null;
 }
 
 export function updateProfile(
@@ -158,6 +162,8 @@ interface PublicProfileSnapshotRow {
   equipped_title_id: string | null;
   equipped_font_id: string | null;
   equipped_mascot_id: string | null;
+  equipped_banner_id: string | null;
+  equipped_effect_id: string | null;
 }
 
 export interface PublicProfileSnapshot {
@@ -170,6 +176,8 @@ export interface PublicProfileSnapshot {
   equippedTitleId: string | null;
   equippedFontId: string | null;
   equippedMascotId: string | null;
+  equippedBannerId: string | null;
+  equippedEffectId: string | null;
 }
 
 export async function findPublicProfileSnapshot(
@@ -191,6 +199,8 @@ export async function findPublicProfileSnapshot(
     equippedTitleId: row.equipped_title_id,
     equippedFontId: row.equipped_font_id,
     equippedMascotId: row.equipped_mascot_id,
+    equippedBannerId: row.equipped_banner_id,
+    equippedEffectId: row.equipped_effect_id,
   };
 }
 

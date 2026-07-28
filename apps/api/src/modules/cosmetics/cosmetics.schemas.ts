@@ -39,5 +39,7 @@ export const updateLoadoutSchema = z.object({
   titleId: z.string().trim().min(1).nullable().optional(),
   fontId: z.string().trim().min(1).nullable().optional(),
   mascotId: z.string().trim().min(1).nullable().optional(),
+  bannerId: z.string().trim().min(1).nullable().optional(),
+  effectId: z.string().trim().min(1).nullable().optional(),
 });
 export type UpdateLoadoutInput = z.infer<typeof updateLoadoutSchema>;

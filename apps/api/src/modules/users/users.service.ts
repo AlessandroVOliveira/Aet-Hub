@@ -119,15 +119,18 @@ export async function getPublicProfile(actor: AccessTokenPayload, targetUserId: 
     }
 
     // Loadout (armário cosmético, fatia 1 borda/título; fatia 3 fonte/
-    // mascote): a função definer só devolve os ids equipados (bypassa RLS
-    // de profiles) — resolver nome/className/raridade/emoji contra
-    // cosmetic_items é leitura comum, catálogo público sem RLS pra se
-    // preocupar (diferente da travessia users/profiles acima).
+    // mascote; fatia 4 banner/efeito): a função definer só devolve os ids
+    // equipados (bypassa RLS de profiles) — resolver nome/className/
+    // raridade/emoji contra cosmetic_items é leitura comum, catálogo
+    // público sem RLS pra se preocupar (diferente da travessia
+    // users/profiles acima).
     const cosmeticIds = [
       snapshot.equippedFrameId,
       snapshot.equippedTitleId,
       snapshot.equippedFontId,
       snapshot.equippedMascotId,
+      snapshot.equippedBannerId,
+      snapshot.equippedEffectId,
     ].filter((id): id is string => id !== null);
     const [totalXp, achievements, followCounts, equippedCosmetics] = await Promise.all([
       xpRepository.getXpTotal(tx, targetUserId),
@@ -137,8 +140,15 @@ export async function getPublicProfile(actor: AccessTokenPayload, targetUserId: 
     ]);
     const cosmeticById = new Map(equippedCosmetics.map((item) => [item.id, item]));
 
-    const { equippedFrameId, equippedTitleId, equippedFontId, equippedMascotId, ...publicFields } =
-      snapshot;
+    const {
+      equippedFrameId,
+      equippedTitleId,
+      equippedFontId,
+      equippedMascotId,
+      equippedBannerId,
+      equippedEffectId,
+      ...publicFields
+    } = snapshot;
 
     return {
       ...publicFields,
@@ -150,6 +160,8 @@ export async function getPublicProfile(actor: AccessTokenPayload, targetUserId: 
       equippedTitle: equippedTitleId ? (cosmeticById.get(equippedTitleId) ?? null) : null,
       equippedFont: equippedFontId ? (cosmeticById.get(equippedFontId) ?? null) : null,
       equippedMascot: equippedMascotId ? (cosmeticById.get(equippedMascotId) ?? null) : null,
+      equippedBanner: equippedBannerId ? (cosmeticById.get(equippedBannerId) ?? null) : null,
+      equippedEffect: equippedEffectId ? (cosmeticById.get(equippedEffectId) ?? null) : null,
     };
   });
 }

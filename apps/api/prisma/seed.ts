@@ -45,8 +45,8 @@ const achievements = [
   },
 ];
 
-// Armário Cosmético (fatia 1: bordas + títulos; fatia 3: fontes + mascotes)
-// — nomes/preços/raridades portados de
+// Armário Cosmético (fatia 1: bordas + títulos; fatia 3: fontes + mascotes;
+// fatia 4: banners + efeitos) — nomes/preços/raridades portados de
 // src-lovable/pixel-palette-pal-07/src/lib/mock.ts, adaptados pros enums
 // CosmeticKind/CosmeticRarity do backend. `title-duelista` (unlock por
 // conquista) fica de fora: nenhum Achievement.code existente mapeia pra
@@ -54,9 +54,11 @@ const achievements = [
 // memory/project_cosmetic_locker_slice.md) — os itens "lendário" via
 // torneio Major/temporada também ficam fora (conceitos que não existem),
 // incluindo o mascote "Dragãozinho Brasa" (unlock "Vença um torneio
-// Major"). O mascote "Sem mascote" do mock também fica fora: não é um
-// item comprável/equipável de catálogo, é só o estado null de
-// equippedMascotId (mesma semântica de moldura/título sem equip).
+// Major") e o banner "Aurora do Sul" (descrição "banner animado sazonal"
+// — preso ao conceito de temporada/season, mesmo critério). "Sem mascote"/
+// "Sem efeito" do mock também ficam de fora: não são itens comprável/
+// equipável de catálogo, são só o estado null de equippedMascotId/
+// equippedEffectId (mesma semântica de moldura/título sem equip).
 const cosmeticItems = [
   {
     kind: 'FRAME' as const,
@@ -164,6 +166,46 @@ const cosmeticItems = [
     priceInPoints: 6200,
     emoji: '🤖',
     className: 'animate-mascot-float',
+  },
+  {
+    kind: 'BANNER' as const,
+    name: 'Noite Fronteira',
+    description: 'Gradiente sóbrio navy',
+    rarity: 'COMMON' as const,
+    priceInPoints: 0,
+    className: 'bg-gradient-to-br from-navy-light to-navy-dark',
+  },
+  {
+    kind: 'BANNER' as const,
+    name: 'Chama de Alegrete',
+    description: 'Brasa varrendo o card',
+    rarity: 'RARE' as const,
+    priceInPoints: 2800,
+    className: 'bg-gradient-to-br from-ember/40 via-navy-light to-navy-dark',
+  },
+  {
+    kind: 'BANNER' as const,
+    name: 'Grid Arcade',
+    description: 'Malha retrô com scanline',
+    rarity: 'EPIC' as const,
+    priceInPoints: 6100,
+    className: 'bg-gradient-to-tr from-fuchsia-600/30 via-navy-light to-sky-500/20',
+  },
+  {
+    kind: 'EFFECT' as const,
+    name: 'Scanline CRT',
+    description: 'Varredura sobre o card',
+    rarity: 'RARE' as const,
+    priceInPoints: 2400,
+    className: 'animate-scanline',
+  },
+  {
+    kind: 'EFFECT' as const,
+    name: 'Brasa Pulsante',
+    description: 'Brilho ember na tag',
+    rarity: 'EPIC' as const,
+    priceInPoints: 5200,
+    className: 'text-ember animate-ember-glow',
   },
 ];
 

@@ -29,6 +29,8 @@ export async function listCosmetics(actor: AccessTokenPayload, kind?: CosmeticKi
         titleId: profile?.equippedTitleId ?? null,
         fontId: profile?.equippedFontId ?? null,
         mascotId: profile?.equippedMascotId ?? null,
+        bannerId: profile?.equippedBannerId ?? null,
+        effectId: profile?.equippedEffectId ?? null,
       },
     };
   });
@@ -157,11 +159,13 @@ export async function updateLoadout(actor: AccessTokenPayload, input: UpdateLoad
       cosmeticsRepository.findOwnedCosmeticItemIds(tx, actor.id),
     ]);
 
-    const [frameId, titleId, fontId, mascotId] = await Promise.all([
+    const [frameId, titleId, fontId, mascotId, bannerId, effectId] = await Promise.all([
       resolveLoadoutSlot(tx, input.frameId, 'FRAME', unlockedCodes, ownedIds),
       resolveLoadoutSlot(tx, input.titleId, 'TITLE', unlockedCodes, ownedIds),
       resolveLoadoutSlot(tx, input.fontId, 'FONT', unlockedCodes, ownedIds),
       resolveLoadoutSlot(tx, input.mascotId, 'MASCOT', unlockedCodes, ownedIds),
+      resolveLoadoutSlot(tx, input.bannerId, 'BANNER', unlockedCodes, ownedIds),
+      resolveLoadoutSlot(tx, input.effectId, 'EFFECT', unlockedCodes, ownedIds),
     ]);
 
     return usersRepository.updateProfile(tx, actor.id, {
@@ -169,6 +173,8 @@ export async function updateLoadout(actor: AccessTokenPayload, input: UpdateLoad
       ...(titleId !== undefined ? { equippedTitleId: titleId } : {}),
       ...(fontId !== undefined ? { equippedFontId: fontId } : {}),
       ...(mascotId !== undefined ? { equippedMascotId: mascotId } : {}),
+      ...(bannerId !== undefined ? { equippedBannerId: bannerId } : {}),
+      ...(effectId !== undefined ? { equippedEffectId: effectId } : {}),
     });
   });
 }
