@@ -1468,15 +1468,97 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `senderName`), `CommunityPage`/`PostDetailPage` (post + comentário).
   Ver bullet correspondente em "Padrões do backend" pra semântica de
   loadout ao vivo (ranking/chave) vs. snapshot congelado (chat/comunidade).
-  Fatias futuras documentadas, não implementadas: Fonte + Mascote (mesmas
-  4 superfícies, `PlayerBadge` já pronto pra reaproveitar); Banner +
-  Efeitos (só `/perfil`/`/perfil/:userId`, exige portar
-  `animate-mascot-bounce`/`animate-mascot-float`/ajustar `animate-scanline`
-  pro `theme.css` real); itens de raridade lendário via torneio "Major"/
-  temporada (bloqueado até esses conceitos existirem no produto); DM
-  ganhando a mesma decoração (só se pedido); mapear `title-duelista` (e
-  outros itens desbloqueados por conquista) pra um `Achievement.code` real
-  (decisão de conteúdo pendente).
+  Fatias futuras documentadas, não implementadas: Banner + Efeitos (só
+  `/perfil`/`/perfil/:userId`, exige ajustar `animate-scanline` pro
+  `theme.css` real e portar animações novas de banner/efeito — mascote já
+  portou `animate-mascot-bounce`/`animate-mascot-float` na fatia 3, ver
+  bullet abaixo); itens de raridade lendário via torneio "Major"/temporada
+  (bloqueado até esses conceitos existirem no produto); DM ganhando a
+  mesma decoração (só se pedido); mapear `title-duelista` (e outros itens
+  desbloqueados por conquista) pra um `Achievement.code` real (decisão de
+  conteúdo pendente).
+- **Armário cosmético — fonte + mascote (fatia 3)**: **escopo de
+  propagação assimétrico entre as duas categorias, decisão tomada com o
+  usuário via `AskUserQuestion`** — diferente do que a fatia 2 tinha
+  documentado como plano ("mesmas 4 superfícies" pros dois). Fonte
+  propaga pras 5 superfícies (perfil próprio, perfil público, ranking,
+  chave, chat geral + comunidade — DM continua fora, mesma exclusão já
+  documentada na fatia 2): é só `className` num texto, funciona em
+  qualquer tamanho. Mascote fica restrito a `/perfil` e `/perfil/:userId`
+  (avatar de 96px, onde o mock desenha o emoji sobreposto a
+  `~24px`/`text-2xl`) — **não** propaga pro `PlayerBadge` compacto
+  (`ranking`/`chave`/`chat`/`comunidade`, avatar de 24px): a mesma
+  proporção do mock nesse tamanho renderizaria um emoji de ~6px,
+  ilegível. Consequência em cascata por toda a stack: `LeaderboardEntry`/
+  `RegistrationSeat`/`ChatMessage`/`Post`/`PostComment` (backend e
+  frontend) ganharam só um campo novo cada (`font`/`equippedFont`/
+  `senderFontClassName`/`authorFontClassName`), nunca um par
+  font+mascot — só `UserProfile`/`PublicProfile` (as duas telas de
+  avatar grande) ganharam os dois (`equippedFont` E `equippedMascot`).
+  **Dois campos novos em `Profile`** (`equippedFontId`/`equippedMascotId`,
+  mesmo padrão de FK nullable `ON DELETE SET NULL` de
+  `equippedFrameId`/`equippedTitleId`) + **um campo novo em
+  `CosmeticItem`** (`emoji String?`, distinto de `className` — mascote
+  usa os dois ao mesmo tempo: `emoji` é o glifo renderizado, `className`
+  é só a classe de animação `animate-mascot-bounce`/`animate-mascot-float`).
+  **Terceira rodada do gotcha de `DROP FUNCTION` + `CREATE FUNCTION`**
+  (mesmo já documentado nas fatias 1/2): `app_points_leaderboard()`
+  ganhou só `equipped_font_id` (migration `points_leaderboard_font`);
+  `app_public_profile_snapshot()` ganhou `equipped_font_id` E
+  `equipped_mascot_id` juntos (migration `public_profile_font_mascot`) —
+  reflexo direto da assimetria de escopo acima. `registrationSeatSelect`
+  (`matches.repository.ts`) e `ranking.repository.ts` só ganharam
+  `equippedFont`/`font` (sem mascote); `chat.service.ts`/
+  `posts.service.ts` só ganharam `senderFontClassName`/
+  `authorFontClassName` nas 3 tabelas de snapshot (`ChatMessage`/`Post`/
+  `Comment`) — zero coluna de mascote nelas, porque mascote nunca chega
+  nessas superfícies. `cosmetics.service.ts#resolveLoadoutSlot` já era
+  genérico por `kind` desde a fatia 1 (só usado pra FRAME/TITLE até
+  aqui) — estender `updateLoadout` pra FONT/MASCOT foi só adicionar mais
+  duas chamadas, zero mudança na função em si. `CosmeticCloset.tsx`
+  trocou o `slotKeyFor` binário (`FRAME`→`frameId` senão `titleId`) por
+  um `SLOT_KEY: Record<CosmeticKind, keyof CosmeticLoadout | undefined>`
+  **completo** (não `Partial`) — força o compilador a avisar se um 7º
+  `CosmeticKind` for adicionado sem passar por aqui; `BANNER`/`EFFECT`
+  ficam `undefined` (inalcançáveis pela UI hoje, `KIND_TABS` não os
+  lista, mas o tipo continua exaustivo). Preview de fonte no armário
+  mostra a string literal `"AET"` estilizada com `item.className` (não o
+  `item.name`) — mesma convenção já usada no preview de borda (`"AE"`
+  fixo); preview de mascote é um mini-avatar `"AE"` com o emoji
+  sobreposto no canto (mesmo offset `-bottom-2 -left-3` do avatar grande
+  real), replicando 1:1 o grid do armário cosmético do mock
+  (`pixel-palette-pal-07/src/routes/profile.tsx`). **Seed**: 3 fontes +
+  5 mascotes portados do mock — excluídos o mascote "Dragãozinho Brasa"
+  (`unlock: "Vença um torneio Major"`, mesmo critério de exclusão de
+  itens lendário já usado na fatia 1) e o "Sem mascote" do mock (não é
+  item de catálogo comprável, é só o estado `null` de
+  `equippedMascotId`, mesma semântica de moldura/título desequipados).
+  **Gotcha real batido nesta fatia**: `var(--ember)` do snippet original
+  do Lovable (`drop-shadow-[0_0_6px_var(--ember)]`) não existe no
+  `theme.css` real do projeto — os tokens do `@theme` viram
+  `--color-ember`, não `--ember` (Tailwind v4 prefixa automaticamente);
+  copiar o snippet literal teria produzido um drop-shadow silenciosamente
+  sem cor (var indefinida), sem erro nenhum. Corrigido pra
+  `var(--color-ember)` nos dois lugares que desenham o overlay de
+  mascote (`ProfilePage.tsx`/`PublicProfilePage.tsx`).
+  **Testado fim a fim via `claude-in-chrome` + `curl`**: compra de fonte
+  paga (Terminal AET, monoespaçada) e mascote (Bot de Fronteira, 🤖)
+  como admin — saldo debitado corretamente, nome do card de perfil
+  mudando de fonte visualmente, emoji do mascote sobreposto no avatar
+  com a animação aplicada; loadout do `user` setado direto via `psql`
+  (fonte + mascote) pra confirmar perfil público de terceiro mostrando
+  os dois; mensagem de chat e post de comunidade enviados via `curl`
+  como `user` (token assinado localmente com `JWT_SECRET`, mesmo truque
+  já documentado na fatia 2) confirmando `senderFontClassName`/
+  `authorFontClassName` no payload E aplicados no DOM (`className` do
+  `<span>` do nome, verificado via `javascript_tool`); `curl` direto em
+  `/ranking` e `/matches/tournaments/:id/bracket` confirmando `font`/
+  `equippedFont` presentes e **nenhuma chave de mascote na resposta**
+  (não só `null` — estruturalmente ausente, prova de que a exclusão de
+  escopo foi aplicada em todas as camadas, não só na UI). `tsc -b`/
+  `eslint` limpos nos dois workspaces. Dados de teste (mensagem/post/
+  compras/pontos de teste/loadout do `user`) revertidos via `psql`
+  direto ao final — banco de volta ao baseline.
 - **`ProfilePage.tsx` reorganizada pra bater com `pixel-palette-pal-07`
   fielmente**: o design portado na fatia do Armário Cosmético (ver bullets
   acima) tinha ficado só na aba "Personalizar"; a aba "Visão geral" ainda
@@ -1566,12 +1648,12 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   ALGUÉM, só a minha própria lista de quem eu sigo); só reflete após
   reload. Comportamento idêntico ao da versão anterior da tela, só
   mudou de lugar visualmente.
-- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda): fatias
-  futuras do Armário Cosmético (Fonte + Mascote, Banner + Efeitos)
-  documentadas nos bullets acima. RF-08 (recuperação de senha por e-mail)
-  e RF-10 (excluir conta/exportar dados, LGPD) seguem como próximas
-  fatias funcionais candidatas da Fase 1, ainda sem decisão de qual vem
-  primeiro.
+- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda): fatia
+  futura do Armário Cosmético (Banner + Efeitos, ver bullet acima — Fonte
+  + Mascote já implementados na fatia 3). RF-08 (recuperação de senha por
+  e-mail) e RF-10 (excluir conta/exportar dados, LGPD) seguem como
+  próximas fatias funcionais candidatas da Fase 1, ainda sem decisão de
+  qual vem primeiro.
 
 ## Banco de dados local (Docker Compose)
 
