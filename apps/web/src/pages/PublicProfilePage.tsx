@@ -58,9 +58,7 @@ export function PublicProfilePage() {
       <div className="p-4 md:p-8 space-y-8">
         {profileQuery.isError && (
           <Banner variant="error">
-            {profileQuery.error instanceof ApiError
-              ? profileQuery.error.message
-              : 'Erro inesperado'}
+            {profileQuery.error instanceof ApiError ? profileQuery.error.message : 'Erro inesperado'}
           </Banner>
         )}
 
@@ -68,58 +66,101 @@ export function PublicProfilePage() {
 
         {profile && (
           <>
-            <div className="flex flex-wrap items-center gap-6">
+            {/* Card de perfil — mesma estrutura visual de ProfilePage.tsx,
+                adaptada aos campos que app_public_profile_snapshot expõe pra
+                terceiros (sem avatarUrl/bio/histórico de torneios/partidas). */}
+            <section className="ring-1 ring-silver/10 p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
               <div
-                className={`size-20 bg-ember/20 grid place-items-center font-display italic text-3xl shrink-0 ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
+                className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl shrink-0 ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
               >
                 {profile.displayName[0]?.toUpperCase() ?? profile.username[0]?.toUpperCase()}
               </div>
-              <div className="flex flex-col gap-3">
-                {profile.equippedTitle && (
-                  <span
-                    className={`self-start px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
-                  >
-                    {profile.equippedTitle.name}
+              <div className="min-w-0">
+                <p className="text-3xl md:text-5xl uppercase leading-none font-display italic">
+                  {profile.displayName}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {profile.equippedTitle && (
+                    <span
+                      className={`px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
+                    >
+                      {profile.equippedTitle.name}
+                    </span>
+                  )}
+                  <span className="px-2 py-1 bg-navy-dark/70 ring-1 ring-silver/15 font-mono text-[10px] uppercase text-silver-muted">
+                    LVL {profile.progress.level}
                   </span>
-                )}
-                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2 font-mono text-xs">
-                  <div>
-                    <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                      Jogo favorito
-                    </dt>
-                    <dd className="mt-1">{profile.favoriteGameName ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                      Personagem favorito
-                    </dt>
-                    <dd className="mt-1">{profile.favoriteCharacter ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                      Tema
-                    </dt>
-                    <dd className="mt-1">{profile.theme ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                      Seguidores
-                    </dt>
-                    <dd className="mt-1">{profile.followersCount}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-silver-muted uppercase tracking-widest text-[10px]">
-                      Seguindo
-                    </dt>
-                    <dd className="mt-1">{profile.followingCount}</dd>
-                  </div>
-                </dl>
+                </div>
               </div>
+              <div className="md:ml-auto font-mono text-[10px] uppercase text-silver-muted space-y-1">
+                <p>
+                  Jogo favorito: <span className="text-silver">{profile.favoriteGameName ?? '—'}</span>
+                </p>
+                <p>
+                  Personagem: <span className="text-silver">{profile.favoriteCharacter ?? '—'}</span>
+                </p>
+                <p>
+                  Tema: <span className="text-silver">{profile.theme ?? '—'}</span>
+                </p>
+              </div>
+            </section>
+
+            {/* Layout principal/aside espelha ProfilePage.tsx — sem histórico
+                de torneios/partidas (não existe endpoint pra terceiro) nem
+                listas de seguindo/seguidores (API pública só devolve
+                contagem, não a lista, pra um terceiro). */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <section className="lg:col-span-2 space-y-6">
+                <div className="bg-navy-light ring-1 ring-silver/10 p-6">
+                  <LevelProgressBar progress={profile.progress} />
+                </div>
+              </section>
+
+              <aside className="space-y-6">
+                <section className="bg-navy-light ring-1 ring-silver/10">
+                  <header className="px-4 py-3 border-b border-silver/10">
+                    <h3 className="font-mono text-[10px] uppercase text-silver-muted tracking-widest">
+                      Loadout
+                    </h3>
+                  </header>
+                  <ul className="p-4 space-y-2">
+                    <li className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">Borda</span>
+                      <span
+                        className={cosmeticRarityStyle[profile.equippedFrame?.rarity ?? 'COMMON'].split(' ')[0]}
+                      >
+                        {profile.equippedFrame?.name ?? '—'}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">Título</span>
+                      <span
+                        className={cosmeticRarityStyle[profile.equippedTitle?.rarity ?? 'COMMON'].split(' ')[0]}
+                      >
+                        {profile.equippedTitle?.name ?? '—'}
+                      </span>
+                    </li>
+                  </ul>
+                </section>
+
+                <AchievementsList achievements={profile.achievements} />
+
+                <section className="bg-navy-light ring-1 ring-silver/10 p-4 grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="font-display italic text-2xl">{profile.followersCount}</p>
+                    <p className="font-mono text-[10px] uppercase text-silver-muted tracking-widest mt-1">
+                      Seguidores
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-display italic text-2xl">{profile.followingCount}</p>
+                    <p className="font-mono text-[10px] uppercase text-silver-muted tracking-widest mt-1">
+                      Seguindo
+                    </p>
+                  </div>
+                </section>
+              </aside>
             </div>
-
-            <LevelProgressBar progress={profile.progress} />
-
-            <AchievementsList achievements={profile.achievements} />
           </>
         )}
       </div>
