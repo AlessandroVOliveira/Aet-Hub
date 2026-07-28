@@ -985,6 +985,28 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `StatusChip`). CSS Modules remanescentes de páginas ainda não retelhadas
   são removidos conforme cada tela é migrada — não é um estado permanente
   de dois sistemas coexistindo.
+- **Gotcha real: classes Tailwind vindas do banco (armário cosmético)
+  precisam de `@source inline(...)` explícito** — descoberto na fatia 4
+  (Banner+Efeito) quando o gradiente do item "Grid Arcade"
+  (`CosmeticItem.className`, texto livre editável pelo admin) simplesmente
+  não renderizava (`getComputedStyle` confirmava `background-image:
+  none`, sem erro nenhum no console). Causa: o Tailwind v4 só gera CSS
+  pras classes que encontra literalmente escaneando o código-fonte — uma
+  `className` que só existe como dado dinâmico vindo da API nunca é
+  "vista" pelo scanner, então nunca vira CSS de verdade, mesmo que a
+  string seja sintaticamente uma classe Tailwind válida. Os itens de
+  frame/fonte/mascote das fatias 1/3 funcionaram só por coincidência (as
+  mesmas classes, ex. `ring-2 ring-ember`/`font-mono`, já apareciam
+  literalmente em outro lugar estático do app, ou são `@utility`
+  declaradas direto no CSS como `animate-mascot-bounce` — essas sempre
+  funcionam, independem do scanner). Fix: `src/styles/theme.css` lista
+  `@source inline('...')` pra cada `className` exata do catálogo seedado
+  (frame/fonte/mascote/banner/efeito, todas), logo após o `@import
+  'tailwindcss'`. **Isso não escala sozinho**: um admin cadastrando um
+  cosmético novo em `/admin/cosmeticos` com uma combinação de classes
+  inédita (ex. uma cor Tailwind nunca usada em lugar nenhum do app) cai
+  no mesmo problema — precisa de uma entrada `@source inline(...)` nova
+  em `theme.css` pra realmente renderizar, não é auto-descoberto.
 - **Estrutura de layout de página**: `AppLayout` (`src/components/layout/
   AppLayout.tsx`) envolve todas as rotas, mas só desenha a casca (sidebar
   desktop / drawer mobile, saldo de pontos via `useMyWallet`) quando há
@@ -1468,15 +1490,15 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `senderName`), `CommunityPage`/`PostDetailPage` (post + comentário).
   Ver bullet correspondente em "Padrões do backend" pra semântica de
   loadout ao vivo (ranking/chave) vs. snapshot congelado (chat/comunidade).
-  Fatias futuras documentadas, não implementadas: Banner + Efeitos (só
-  `/perfil`/`/perfil/:userId`, exige ajustar `animate-scanline` pro
-  `theme.css` real e portar animações novas de banner/efeito — mascote já
-  portou `animate-mascot-bounce`/`animate-mascot-float` na fatia 3, ver
-  bullet abaixo); itens de raridade lendário via torneio "Major"/temporada
-  (bloqueado até esses conceitos existirem no produto); DM ganhando a
-  mesma decoração (só se pedido); mapear `title-duelista` (e outros itens
-  desbloqueados por conquista) pra um `Achievement.code` real (decisão de
-  conteúdo pendente).
+  Fatias futuras documentadas, não implementadas: itens de raridade
+  lendário via torneio "Major"/temporada (bloqueado até esses conceitos
+  existirem no produto — ver também exclusões do banner "Aurora do Sul"
+  na fatia 4, mesmo critério); DM ganhando a mesma decoração de
+  frame/título/fonte (só se pedido); mapear `title-duelista` (e outros
+  itens desbloqueados por conquista) pra um `Achievement.code` real
+  (decisão de conteúdo pendente). Banner+Efeitos concluídos na fatia 4
+  (ver bullet abaixo) — o armário cosmético está com os 6 kinds
+  implementados.
 - **Armário cosmético — fonte + mascote (fatia 3)**: **escopo de
   propagação assimétrico entre as duas categorias, decisão tomada com o
   usuário via `AskUserQuestion`** — diferente do que a fatia 2 tinha
@@ -1559,6 +1581,92 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   `eslint` limpos nos dois workspaces. Dados de teste (mensagem/post/
   compras/pontos de teste/loadout do `user`) revertidos via `psql`
   direto ao final — banco de volta ao baseline.
+- **Armário cosmético — banner + efeito (fatia 4, fecha os 6 kinds)**:
+  diferente de fonte/mascote, **os dois ficam só em `/perfil` e
+  `/perfil/:userId`** — sem propagação nenhuma pra ranking/chave/chat/
+  comunidade (nem o mock do Lovable nem nenhum módulo do backend tem
+  banner/efeito fora do perfil, confirmado por pesquisa exaustiva antes
+  de planejar). Único campo novo em `CosmeticItem` foi o `emoji` já
+  criado na fatia 3 (mascote) — banner e efeito usam só o `className`
+  genérico que já existia desde a fatia 1, sem coluna nova no catálogo.
+  **Dois campos novos em `Profile`** (`equippedBannerId`/
+  `equippedEffectId`, mesmo padrão FK nullable das quatro anteriores).
+  **Quarta rodada do gotcha `DROP FUNCTION`+`CREATE FUNCTION`**
+  (`public_profile_banner_effect`, estende `app_public_profile_snapshot`
+  com os dois ids) — **sem migration nova em `app_points_leaderboard()`**
+  dessa vez, já que nada propaga pro ranking.
+  **Decisão tomada com o usuário via `AskUserQuestion`**: o mock do
+  Lovable tem dois efeitos com tratamento visual completamente diferente
+  (scanline = faixa animada sobreposta ao card inteiro; glow = brilho só
+  no texto do nome) e nenhum item de efeito no mock tem `className` — o
+  código de referência distingue por id fixo (`"fx-scan"`/`"fx-glow"`),
+  o que não existe no AET Hub (todo `CosmeticItem.id` é `cuid()`).
+  Resolvido dando um `className` real pra cada efeito
+  (`animate-scanline` / `text-ember animate-ember-glow`) e decidindo o
+  tratamento em tempo de render checando se a string
+  **contém** `"scanline"`: se sim vira overlay estrutural (`ProfilePage.tsx`/
+  `PublicProfilePage.tsx` renderizam incondicionalmente o `<div>` de
+  overlay, só ativo quando `equippedEffect?.className?.includes('scanline')`,
+  com a própria classe do item aplicada na faixa interna — não
+  hardcoded); senão o `className` inteiro é concatenado no `<p>` do nome,
+  ao lado do `equippedFont?.className` já existente. Convenção
+  documentada em comentário nos dois arquivos — não é um campo de schema
+  novo, é dado (a própria string) decidindo o comportamento.
+  **Restructure do card de perfil** (`ProfilePage.tsx`/
+  `PublicProfilePage.tsx`, espelhando
+  `pixel-palette-pal-07/src/routes/profile.tsx:85-115`): a `<section>`
+  externa (antes um único elemento com padding/flex direto) virou duas
+  camadas — a `<section>` ganhou `relative overflow-hidden` +
+  `equippedBanner?.className` (o gradiente vira o fundo do card
+  inteiro), e todo o conteúdo antigo migrou pra uma `<div className="relative
+  p-6...">` interna, com o overlay de scanline como primeiro filho da
+  `<section>` (entre ela e a `<div>` de conteúdo) pra ficar visualmente
+  atrás do avatar/nome mas acima do gradiente do banner.
+  **`CosmeticCloset.tsx`**: `SLOT_KEY` (já `Record<CosmeticKind, ...>`
+  completo desde a fatia 3) trocou os dois últimos `undefined` por
+  `'bannerId'`/`'effectId'` — zero mudança estrutural, só preencher o
+  mapa. Preview do card ganhou um branch dedicado pra BANNER —
+  `item.className` aplicado no `<div>` externo `h-16` (fundo do swatch),
+  não num `<span>` interno como as outras categorias (única categoria
+  cujo className vira plano de fundo, não estilo de elemento); EFEITO cai
+  no branch genérico (texto puro do nome, **sem** `className` aplicado —
+  evita a prévia de "Scanline CRT" ganhar uma animação de `translateY`
+  estranha aplicada a um texto minúsculo).
+  **Gotcha real, o mais sério desta fatia**: o gradiente do banner "Grid
+  Arcade" simplesmente não aparecia — sem erro nenhum, `background-image:
+  none` confirmado via `getComputedStyle`. Causa: Tailwind v4 só gera CSS
+  pra classes encontradas literalmente no código-fonte escaneado; uma
+  `className` que só existe como dado vindo da API (nunca aparece como
+  string literal em nenhum `.tsx`) nunca é "vista" pelo scanner. Frame/
+  fonte/mascote (fatias 1/3) funcionaram só por coincidência (as mesmas
+  classes já apareciam em outro lugar estático do app, ou são `@utility`
+  declaradas direto no CSS, que sempre funcionam). "Grid Arcade" foi o
+  primeiro item com uma combinação de classes genuinamente inédita
+  (`from-fuchsia-600/30`/`via-navy-light`/`to-sky-500/20`). Fix:
+  `@source inline('...')` em `theme.css` pra cada `className` exata do
+  catálogo seedado (bullet dedicado na seção "Padrões do frontend" —
+  qualquer cosmético novo cadastrado pelo admin com combinação de classes
+  inédita vai precisar da mesma entrada nova). **Seed**: 3 banners + 2
+  efeitos portados do mock — excluído o banner lendário "Aurora do Sul"
+  (descrição "banner animado **sazonal**", mesmo critério de conceito de
+  temporada/Major inexistente já usado nos mascotes da fatia 3) e o
+  efeito "Sem efeito" (não é item de catálogo, é só o estado `null` de
+  `equippedEffectId`).
+  **Testado fim a fim via `claude-in-chrome` + `curl`**: compra de banner
+  (Grid Arcade) e efeito (Scanline CRT, depois trocado por Brasa
+  Pulsante) como admin — gradiente preenchendo o card inteiro atrás do
+  avatar confirmado só depois do fix do `@source inline`, overlay de
+  scanline confirmado via `getComputedStyle`/`animationName` (não dá pra
+  ver animação rodando numa screenshot estática), troca pro efeito de
+  brilho confirmada visualmente (nome em vermelho com `animate-ember-glow`);
+  loadout do `user` setado via `psql` direto (banner "Chama de Alegrete"
+  + efeito "Scanline CRT") confirmando perfil público de terceiro; `curl`
+  em `GET /users/me` confirmando `equippedBanner`/`equippedEffect`
+  completos, e em `/ranking` confirmando **nenhuma chave de banner/efeito**
+  (mesma prova estrutural das fatias anteriores). `tsc -b`/`eslint`
+  limpos nos dois workspaces. Dados de teste (compras/pontos/loadout do
+  `user`) revertidos via `psql` direto ao final — banco de volta ao
+  baseline.
 - **`ProfilePage.tsx` reorganizada pra bater com `pixel-palette-pal-07`
   fielmente**: o design portado na fatia do Armário Cosmético (ver bullets
   acima) tinha ficado só na aba "Personalizar"; a aba "Visão geral" ainda
@@ -1648,10 +1756,10 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   ALGUÉM, só a minha própria lista de quem eu sigo); só reflete após
   reload. Comportamento idêntico ao da versão anterior da tela, só
   mudou de lugar visualmente.
-- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda): fatia
-  futura do Armário Cosmético (Banner + Efeitos, ver bullet acima — Fonte
-  + Mascote já implementados na fatia 3). RF-08 (recuperação de senha por
-  e-mail) e RF-10 (excluir conta/exportar dados, LGPD) seguem como
+- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda): o
+  Armário Cosmético está completo (6/6 kinds implementados nas fatias
+  1/3/4) — não há mais fatia planejada dele. RF-08 (recuperação de senha
+  por e-mail) e RF-10 (excluir conta/exportar dados, LGPD) seguem como
   próximas fatias funcionais candidatas da Fase 1, ainda sem decisão de
   qual vem primeiro.
 
