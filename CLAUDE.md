@@ -1540,15 +1540,38 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   torneio" confirmado via API deixando o torneio `COMPLETED`. Dados de
   teste (`tfixp1`/`tfixp2` + os 2 torneios `Torneio Fix Start Complete A`)
   removidos via `psql` direto.
-- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda):
-  `PublicProfilePage.tsx` não recebeu a mesma reorganização de layout
-  desta sessão (só o card de perfil da fatia do Armário Cosmético já
-  existia lá) — candidata natural se a fidelidade visual também importar
-  pro perfil de terceiros. Fatias futuras do Armário Cosmético (Fonte +
-  Mascote, Banner + Efeitos) documentadas nos bullets acima. RF-08
-  (recuperação de senha por e-mail) e RF-10 (excluir conta/exportar
-  dados, LGPD) seguem como próximas fatias funcionais candidatas da
-  Fase 1, ainda sem decisão de qual vem primeiro.
+- **`PublicProfilePage.tsx` reorganizada pra bater com o mesmo layout de
+  `ProfilePage.tsx`** (card de perfil + duas colunas), adaptada aos campos
+  que `app_public_profile_snapshot`/`getPublicProfile` de fato expõem pra
+  um terceiro: sem `avatarUrl`/`bio` (sempre iniciais, sem descrição no
+  `PageHeader`), sem histórico de torneios/partidas (não existe endpoint
+  de histórico pra outro usuário, só `GET /users/me/history`, RLS-self) e
+  sem as listas de "Seguindo"/"Seguidores" da coluna lateral (a API só
+  devolve `followersCount`/`followingCount` — contagem, não lista, pra não
+  vazar quem terceiros seguem). Esses dois contadores viraram um painel de
+  estatística (`grid grid-cols-2`) na sidebar, no lugar das duas seções de
+  lista que `ProfilePage` tem. Coluna principal fica só com o box de XP
+  (`LevelProgressBar`) — mais enxuta que a de `ProfilePage`, reflexo
+  direto do dado disponível, não um corte deliberado de conteúdo. Loadout
+  na sidebar é idêntico ao de `ProfilePage`, só sem o botão "Trocar" (não
+  é o armário do próprio usuário). Botão Seguir/Seguindo continua no
+  mesmo slot de `actions` do `PageHeader` que `ProfilePage` usa pra
+  Personalizar/Editar perfil — mesmo "slot de ação principal da página".
+  **Gotcha herdado, não novo**: o contador "Seguidores" exibido no painel
+  de estatística não atualiza sozinho depois de seguir/deixar de seguir
+  na mesma visita (`useFollowMutation`/`useUnfollowMutation` só invalidam
+  a query `following` do próprio ator, nunca o `usePublicProfile` do
+  alvo — comentário already existente em `useFollows.ts` explica que é
+  proposital, já que meu follow nunca muda a lista de seguidores de
+  ALGUÉM, só a minha própria lista de quem eu sigo); só reflete após
+  reload. Comportamento idêntico ao da versão anterior da tela, só
+  mudou de lugar visualmente.
+- **Candidatas pra próxima etapa** (nenhuma decisão tomada ainda): fatias
+  futuras do Armário Cosmético (Fonte + Mascote, Banner + Efeitos)
+  documentadas nos bullets acima. RF-08 (recuperação de senha por e-mail)
+  e RF-10 (excluir conta/exportar dados, LGPD) seguem como próximas
+  fatias funcionais candidatas da Fase 1, ainda sem decisão de qual vem
+  primeiro.
 
 ## Banco de dados local (Docker Compose)
 
