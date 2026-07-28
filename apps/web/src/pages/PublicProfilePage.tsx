@@ -58,7 +58,9 @@ export function PublicProfilePage() {
       <div className="p-4 md:p-8 space-y-8">
         {profileQuery.isError && (
           <Banner variant="error">
-            {profileQuery.error instanceof ApiError ? profileQuery.error.message : 'Erro inesperado'}
+            {profileQuery.error instanceof ApiError
+              ? profileQuery.error.message
+              : 'Erro inesperado'}
           </Banner>
         )}
 
@@ -69,52 +71,69 @@ export function PublicProfilePage() {
             {/* Card de perfil — mesma estrutura visual de ProfilePage.tsx,
                 adaptada aos campos que app_public_profile_snapshot expõe pra
                 terceiros (sem avatarUrl/bio/histórico de torneios/partidas). */}
-            <section className="ring-1 ring-silver/10 p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
-              <div className="relative shrink-0">
-                <div
-                  className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
-                >
-                  {profile.displayName[0]?.toUpperCase() ?? profile.username[0]?.toUpperCase()}
+            <section
+              className={`relative overflow-hidden ring-1 ring-silver/10 ${profile.equippedBanner?.className ?? ''}`}
+            >
+              {profile.equippedEffect?.className?.includes('scanline') && (
+                <div className="pointer-events-none absolute inset-0 opacity-30">
+                  <div
+                    className={`h-1/3 w-full bg-gradient-to-b from-transparent via-silver/20 to-transparent ${profile.equippedEffect.className}`}
+                  />
                 </div>
-                {profile.equippedMascot?.emoji && (
-                  <span
-                    className={`pointer-events-none absolute -bottom-2 -left-3 text-2xl drop-shadow-[0_0_6px_var(--color-ember)] ${profile.equippedMascot.className ?? ''}`}
-                    title={profile.equippedMascot.name}
-                    aria-hidden
+              )}
+              <div className="relative p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
+                <div className="relative shrink-0">
+                  <div
+                    className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
                   >
-                    {profile.equippedMascot.emoji}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p
-                  className={`text-3xl md:text-5xl uppercase leading-none ${profile.equippedFont?.className ?? 'font-display italic'}`}
-                >
-                  {profile.displayName}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {profile.equippedTitle && (
+                    {profile.displayName[0]?.toUpperCase() ?? profile.username[0]?.toUpperCase()}
+                  </div>
+                  {profile.equippedMascot?.emoji && (
                     <span
-                      className={`px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
+                      className={`pointer-events-none absolute -bottom-2 -left-3 text-2xl drop-shadow-[0_0_6px_var(--color-ember)] ${profile.equippedMascot.className ?? ''}`}
+                      title={profile.equippedMascot.name}
+                      aria-hidden
                     >
-                      {profile.equippedTitle.name}
+                      {profile.equippedMascot.emoji}
                     </span>
                   )}
-                  <span className="px-2 py-1 bg-navy-dark/70 ring-1 ring-silver/15 font-mono text-[10px] uppercase text-silver-muted">
-                    LVL {profile.progress.level}
-                  </span>
                 </div>
-              </div>
-              <div className="md:ml-auto font-mono text-[10px] uppercase text-silver-muted space-y-1">
-                <p>
-                  Jogo favorito: <span className="text-silver">{profile.favoriteGameName ?? '—'}</span>
-                </p>
-                <p>
-                  Personagem: <span className="text-silver">{profile.favoriteCharacter ?? '—'}</span>
-                </p>
-                <p>
-                  Tema: <span className="text-silver">{profile.theme ?? '—'}</span>
-                </p>
+                <div className="min-w-0">
+                  <p
+                    className={`text-3xl md:text-5xl uppercase leading-none ${profile.equippedFont?.className ?? 'font-display italic'} ${
+                      !profile.equippedEffect?.className?.includes('scanline')
+                        ? (profile.equippedEffect?.className ?? '')
+                        : ''
+                    }`}
+                  >
+                    {profile.displayName}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {profile.equippedTitle && (
+                      <span
+                        className={`px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
+                      >
+                        {profile.equippedTitle.name}
+                      </span>
+                    )}
+                    <span className="px-2 py-1 bg-navy-dark/70 ring-1 ring-silver/15 font-mono text-[10px] uppercase text-silver-muted">
+                      LVL {profile.progress.level}
+                    </span>
+                  </div>
+                </div>
+                <div className="md:ml-auto font-mono text-[10px] uppercase text-silver-muted space-y-1">
+                  <p>
+                    Jogo favorito:{' '}
+                    <span className="text-silver">{profile.favoriteGameName ?? '—'}</span>
+                  </p>
+                  <p>
+                    Personagem:{' '}
+                    <span className="text-silver">{profile.favoriteCharacter ?? '—'}</span>
+                  </p>
+                  <p>
+                    Tema: <span className="text-silver">{profile.theme ?? '—'}</span>
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -138,33 +157,85 @@ export function PublicProfilePage() {
                   </header>
                   <ul className="p-4 space-y-2">
                     <li className="flex items-center justify-between gap-3 text-xs">
-                      <span className="font-mono text-[10px] uppercase text-silver-muted">Borda</span>
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">
+                        Borda
+                      </span>
                       <span
-                        className={cosmeticRarityStyle[profile.equippedFrame?.rarity ?? 'COMMON'].split(' ')[0]}
+                        className={
+                          cosmeticRarityStyle[profile.equippedFrame?.rarity ?? 'COMMON'].split(
+                            ' ',
+                          )[0]
+                        }
                       >
                         {profile.equippedFrame?.name ?? '—'}
                       </span>
                     </li>
                     <li className="flex items-center justify-between gap-3 text-xs">
-                      <span className="font-mono text-[10px] uppercase text-silver-muted">Título</span>
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">
+                        Banner
+                      </span>
                       <span
-                        className={cosmeticRarityStyle[profile.equippedTitle?.rarity ?? 'COMMON'].split(' ')[0]}
+                        className={
+                          cosmeticRarityStyle[profile.equippedBanner?.rarity ?? 'COMMON'].split(
+                            ' ',
+                          )[0]
+                        }
+                      >
+                        {profile.equippedBanner?.name ?? '—'}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">
+                        Título
+                      </span>
+                      <span
+                        className={
+                          cosmeticRarityStyle[profile.equippedTitle?.rarity ?? 'COMMON'].split(
+                            ' ',
+                          )[0]
+                        }
                       >
                         {profile.equippedTitle?.name ?? '—'}
                       </span>
                     </li>
                     <li className="flex items-center justify-between gap-3 text-xs">
-                      <span className="font-mono text-[10px] uppercase text-silver-muted">Fonte</span>
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">
+                        Fonte
+                      </span>
                       <span
-                        className={cosmeticRarityStyle[profile.equippedFont?.rarity ?? 'COMMON'].split(' ')[0]}
+                        className={
+                          cosmeticRarityStyle[profile.equippedFont?.rarity ?? 'COMMON'].split(
+                            ' ',
+                          )[0]
+                        }
                       >
                         {profile.equippedFont?.name ?? '—'}
                       </span>
                     </li>
                     <li className="flex items-center justify-between gap-3 text-xs">
-                      <span className="font-mono text-[10px] uppercase text-silver-muted">Mascote</span>
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">
+                        Efeito
+                      </span>
                       <span
-                        className={cosmeticRarityStyle[profile.equippedMascot?.rarity ?? 'COMMON'].split(' ')[0]}
+                        className={
+                          cosmeticRarityStyle[profile.equippedEffect?.rarity ?? 'COMMON'].split(
+                            ' ',
+                          )[0]
+                        }
+                      >
+                        {profile.equippedEffect?.name ?? '—'}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-mono text-[10px] uppercase text-silver-muted">
+                        Mascote
+                      </span>
+                      <span
+                        className={
+                          cosmeticRarityStyle[profile.equippedMascot?.rarity ?? 'COMMON'].split(
+                            ' ',
+                          )[0]
+                        }
                       >
                         {profile.equippedMascot?.name ?? '—'}
                       </span>

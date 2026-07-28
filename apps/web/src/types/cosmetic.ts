@@ -29,6 +29,8 @@ export interface CosmeticLoadout {
   titleId: string | null;
   fontId: string | null;
   mascotId: string | null;
+  bannerId: string | null;
+  effectId: string | null;
 }
 
 export interface GetCosmeticsResponse {
@@ -69,4 +71,6 @@ export interface UpdateLoadoutPayload {
   titleId?: string | null;
   fontId?: string | null;
   mascotId?: string | null;
+  bannerId?: string | null;
+  effectId?: string | null;
 }

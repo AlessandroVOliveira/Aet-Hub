@@ -8,27 +8,26 @@ import { cosmeticRarityLabels, cosmeticRarityStyle } from '@/utils/format';
 import type { CosmeticKind, CosmeticLoadout, OwnedCosmeticItem } from '@/types/cosmetic';
 
 // Grid/cards espelham src-lovable/pixel-palette-pal-07/src/routes/profile.tsx
-// (aba "Personalizar") — fatias 1/3 cobrem Bordas/Títulos/Fontes/Mascotes,
-// Banner/Efeito aguardam fatias futuras (ver
-// memory/project_cosmetic_locker_slice.md).
+// (aba "Personalizar") — fatias 1/3/4 cobrem os 6 kinds do armário
+// cosmético (ver memory/project_cosmetic_locker_slice.md).
 const KIND_TABS: { id: CosmeticKind; label: string }[] = [
   { id: 'FRAME', label: 'Bordas' },
+  { id: 'BANNER', label: 'Banners' },
   { id: 'TITLE', label: 'Títulos' },
   { id: 'FONT', label: 'Fontes' },
+  { id: 'EFFECT', label: 'Efeitos' },
   { id: 'MASCOT', label: 'Mascotes' },
 ];
 
 // Record completo (não Partial) de propósito: força o compilador a avisar
-// se um 7º CosmeticKind for adicionado sem passar por aqui. BANNER/EFFECT
-// ficam `undefined` — inalcançáveis pela UI hoje (KIND_TABS não os lista),
-// mas o tipo continua exaustivo.
+// se um 7º CosmeticKind for adicionado sem passar por aqui.
 const SLOT_KEY: Record<CosmeticKind, keyof CosmeticLoadout | undefined> = {
   FRAME: 'frameId',
   TITLE: 'titleId',
   FONT: 'fontId',
   MASCOT: 'mascotId',
-  BANNER: undefined,
-  EFFECT: undefined,
+  BANNER: 'bannerId',
+  EFFECT: 'effectId',
 };
 
 export function CosmeticCloset() {
@@ -131,7 +130,13 @@ export function CosmeticCloset() {
                   equipped ? 'ring-ember' : 'ring-silver/10'
                 } flex flex-col gap-3`}
               >
-                <div className="h-16 grid place-items-center bg-gradient-to-br from-navy-light to-navy-dark">
+                <div
+                  className={`h-16 grid place-items-center ${
+                    item.kind === 'BANNER'
+                      ? (item.className ?? '')
+                      : 'bg-gradient-to-br from-navy-light to-navy-dark'
+                  }`}
+                >
                   {item.kind === 'FRAME' ? (
                     <span
                       className={`size-10 grid place-items-center bg-navy-dark font-display italic text-xs ${item.className ?? ''}`}
@@ -153,9 +158,11 @@ export function CosmeticCloset() {
                       )}
                     </span>
                   ) : (
-                    <span className={`text-xs font-mono uppercase ${item.className ?? ''}`}>
-                      {item.name}
-                    </span>
+                    // TÍTULO/BANNER/EFEITO caem aqui — sem className aplicado
+                    // no texto de propósito (mock também não aplica; evita a
+                    // prévia de "Scanline CRT" ficar com animação de
+                    // translateY estranha num texto minúsculo).
+                    <span className="text-xs font-mono uppercase">{item.name}</span>
                   )}
                 </div>
 

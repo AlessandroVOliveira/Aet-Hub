@@ -50,6 +50,8 @@ export interface UserProfile {
   equippedTitle: CosmeticItem | null;
   equippedFont: CosmeticItem | null;
   equippedMascot: CosmeticItem | null;
+  equippedBanner: CosmeticItem | null;
+  equippedEffect: CosmeticItem | null;
 }
 
 export interface GetMeResponse {

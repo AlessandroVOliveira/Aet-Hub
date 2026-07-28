@@ -7,6 +7,38 @@
  * index.html.
  */
 
+/* Gotcha real (armário cosmético, fatia 4): CosmeticItem.className é
+   texto livre vindo do banco (via API), nunca aparece como string literal
+   em nenhum arquivo .tsx — o scanner de conteúdo do Tailwind v4 só gera
+   CSS pra classes que encontra literalmente no código-fonte, então uma
+   classe dinâmica só "funciona" por coincidência, se a MESMA string já
+   for usada em outro lugar estático do app (foi assim que frame/fonte/
+   mascote passaram despercebidos nas fatias 1/3 — `ring-2 ring-ember`/
+   `font-mono`/`animate-mascot-bounce` já apareciam em algum outro
+   componente ou já são @utility declaradas aqui). O gradiente "Grid
+   Arcade" (fatia 4) foi o primeiro item cuja combinação de classes é
+   genuinamente nova (`from-fuchsia-600/30`/`via-navy-light`/
+   `to-sky-500/20`) — sumiu sem erro nenhum (`getComputedStyle` confirmou
+   `background-image: none`) até virar `@source inline(...)` explícito
+   aqui. Toda classe de item do catálogo (banner/efeito, e frame/fonte/
+   mascote por segurança) precisa de uma entrada abaixo — se um admin
+   cadastrar um cosmético novo com uma combinação de classes inédita pelo
+   `/admin/cosmeticos`, ela também vai precisar de uma entrada nova aqui
+   pra realmente renderizar. */
+@source inline('ring-2 ring-silver/40');
+@source inline('ring-2 ring-ember animate-ember-glow');
+@source inline('ring-4 ring-fuchsia-400/70');
+@source inline('font-display italic');
+@source inline('font-mono tracking-tight');
+@source inline('font-display italic tracking-[0.25em]');
+@source inline('animate-mascot-bounce');
+@source inline('animate-mascot-float');
+@source inline('bg-gradient-to-br from-navy-light to-navy-dark');
+@source inline('bg-gradient-to-br from-ember/40 via-navy-light to-navy-dark');
+@source inline('bg-gradient-to-tr from-fuchsia-600/30 via-navy-light to-sky-500/20');
+@source inline('animate-scanline');
+@source inline('text-ember animate-ember-glow');
+
 @theme {
   --color-navy-dark: oklch(0.13 0.02 260);
   --color-navy-light: oklch(0.19 0.03 260);

@@ -107,62 +107,80 @@ export function ProfilePage() {
             src/routes/profile.tsx: avatar+frame grande, nome em destaque,
             título/nível inline, info complementar alinhada à direita. */}
         {profile && tab === 'overview' && (
-          <section className="ring-1 ring-silver/10 p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
-            <div className="relative shrink-0">
-              {profile.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt={profile.displayName}
-                  className={`size-24 object-cover ${profile.equippedFrame?.className ?? 'ring-1 ring-silver/20'}`}
-                />
-              ) : (
+          <section
+            className={`relative overflow-hidden ring-1 ring-silver/10 ${profile.equippedBanner?.className ?? ''}`}
+          >
+            {profile.equippedEffect?.className?.includes('scanline') && (
+              <div className="pointer-events-none absolute inset-0 opacity-30">
                 <div
-                  className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
-                >
-                  {profile.displayName[0]?.toUpperCase() ?? profile.user.username[0]?.toUpperCase()}
-                </div>
-              )}
-              {profile.equippedMascot?.emoji && (
-                <span
-                  className={`pointer-events-none absolute -bottom-2 -left-3 text-2xl drop-shadow-[0_0_6px_var(--color-ember)] ${profile.equippedMascot.className ?? ''}`}
-                  title={profile.equippedMascot.name}
-                  aria-hidden
-                >
-                  {profile.equippedMascot.emoji}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <p
-                className={`text-3xl md:text-5xl uppercase leading-none ${profile.equippedFont?.className ?? 'font-display italic'}`}
-              >
-                {profile.displayName}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {profile.equippedTitle && (
-                  <span
-                    className={`px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
+                  className={`h-1/3 w-full bg-gradient-to-b from-transparent via-silver/20 to-transparent ${profile.equippedEffect.className}`}
+                />
+              </div>
+            )}
+            <div className="relative p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
+              <div className="relative shrink-0">
+                {profile.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile.displayName}
+                    className={`size-24 object-cover ${profile.equippedFrame?.className ?? 'ring-1 ring-silver/20'}`}
+                  />
+                ) : (
+                  <div
+                    className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
                   >
-                    {profile.equippedTitle.name}
-                  </span>
+                    {profile.displayName[0]?.toUpperCase() ??
+                      profile.user.username[0]?.toUpperCase()}
+                  </div>
                 )}
-                {xpQuery.data && (
-                  <span className="px-2 py-1 bg-navy-dark/70 ring-1 ring-silver/15 font-mono text-[10px] uppercase text-silver-muted">
-                    LVL {xpQuery.data.progress.level}
+                {profile.equippedMascot?.emoji && (
+                  <span
+                    className={`pointer-events-none absolute -bottom-2 -left-3 text-2xl drop-shadow-[0_0_6px_var(--color-ember)] ${profile.equippedMascot.className ?? ''}`}
+                    title={profile.equippedMascot.name}
+                    aria-hidden
+                  >
+                    {profile.equippedMascot.emoji}
                   </span>
                 )}
               </div>
-            </div>
-            <div className="md:ml-auto font-mono text-[10px] uppercase text-silver-muted space-y-1">
-              <p>
-                Jogo favorito: <span className="text-silver">{profile.favoriteGame?.name ?? '—'}</span>
-              </p>
-              <p>
-                Personagem: <span className="text-silver">{profile.favoriteCharacter ?? '—'}</span>
-              </p>
-              <p>
-                Tema: <span className="text-silver">{profile.theme ?? '—'}</span>
-              </p>
+              <div className="min-w-0">
+                <p
+                  className={`text-3xl md:text-5xl uppercase leading-none ${profile.equippedFont?.className ?? 'font-display italic'} ${
+                    !profile.equippedEffect?.className?.includes('scanline')
+                      ? (profile.equippedEffect?.className ?? '')
+                      : ''
+                  }`}
+                >
+                  {profile.displayName}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {profile.equippedTitle && (
+                    <span
+                      className={`px-2 py-1 bg-navy-dark/70 ring-1 font-mono text-[10px] uppercase tracking-widest ${cosmeticRarityStyle[profile.equippedTitle.rarity]}`}
+                    >
+                      {profile.equippedTitle.name}
+                    </span>
+                  )}
+                  {xpQuery.data && (
+                    <span className="px-2 py-1 bg-navy-dark/70 ring-1 ring-silver/15 font-mono text-[10px] uppercase text-silver-muted">
+                      LVL {xpQuery.data.progress.level}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="md:ml-auto font-mono text-[10px] uppercase text-silver-muted space-y-1">
+                <p>
+                  Jogo favorito:{' '}
+                  <span className="text-silver">{profile.favoriteGame?.name ?? '—'}</span>
+                </p>
+                <p>
+                  Personagem:{' '}
+                  <span className="text-silver">{profile.favoriteCharacter ?? '—'}</span>
+                </p>
+                <p>
+                  Tema: <span className="text-silver">{profile.theme ?? '—'}</span>
+                </p>
+              </div>
             </div>
           </section>
         )}
@@ -186,7 +204,9 @@ export function ProfilePage() {
                   Histórico de torneios
                 </h2>
 
-                {historyQuery.isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
+                {historyQuery.isLoading && (
+                  <p className="text-sm text-silver-muted">Carregando...</p>
+                )}
 
                 {!historyQuery.isLoading && registrations.length === 0 && (
                   <p className="text-sm text-silver-muted">
@@ -210,7 +230,8 @@ export function ProfilePage() {
                           </h3>
                           <p className="font-mono text-[10px] text-silver-muted mt-1">
                             Evento em {formatDate(registration.tournament.eventStartAt)}
-                            {registration.finalPlacement && ` • ${registration.finalPlacement}º lugar`}
+                            {registration.finalPlacement &&
+                              ` • ${registration.finalPlacement}º lugar`}
                           </p>
                         </div>
                         <StatusChip
@@ -228,7 +249,9 @@ export function ProfilePage() {
                   Histórico de partidas
                 </h2>
 
-                {historyQuery.isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
+                {historyQuery.isLoading && (
+                  <p className="text-sm text-silver-muted">Carregando...</p>
+                )}
 
                 {!historyQuery.isLoading && matches.length === 0 && (
                   <p className="text-sm text-silver-muted">Você ainda não jogou nenhuma partida.</p>
@@ -282,25 +305,79 @@ export function ProfilePage() {
                 <ul className="p-4 space-y-2">
                   <li className="flex items-center justify-between gap-3 text-xs">
                     <span className="font-mono text-[10px] uppercase text-silver-muted">Borda</span>
-                    <span className={cosmeticRarityStyle[profile?.equippedFrame?.rarity ?? 'COMMON'].split(' ')[0]}>
+                    <span
+                      className={
+                        cosmeticRarityStyle[profile?.equippedFrame?.rarity ?? 'COMMON'].split(
+                          ' ',
+                        )[0]
+                      }
+                    >
                       {profile?.equippedFrame?.name ?? '—'}
                     </span>
                   </li>
                   <li className="flex items-center justify-between gap-3 text-xs">
-                    <span className="font-mono text-[10px] uppercase text-silver-muted">Título</span>
-                    <span className={cosmeticRarityStyle[profile?.equippedTitle?.rarity ?? 'COMMON'].split(' ')[0]}>
+                    <span className="font-mono text-[10px] uppercase text-silver-muted">
+                      Banner
+                    </span>
+                    <span
+                      className={
+                        cosmeticRarityStyle[profile?.equippedBanner?.rarity ?? 'COMMON'].split(
+                          ' ',
+                        )[0]
+                      }
+                    >
+                      {profile?.equippedBanner?.name ?? '—'}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3 text-xs">
+                    <span className="font-mono text-[10px] uppercase text-silver-muted">
+                      Título
+                    </span>
+                    <span
+                      className={
+                        cosmeticRarityStyle[profile?.equippedTitle?.rarity ?? 'COMMON'].split(
+                          ' ',
+                        )[0]
+                      }
+                    >
                       {profile?.equippedTitle?.name ?? '—'}
                     </span>
                   </li>
                   <li className="flex items-center justify-between gap-3 text-xs">
                     <span className="font-mono text-[10px] uppercase text-silver-muted">Fonte</span>
-                    <span className={cosmeticRarityStyle[profile?.equippedFont?.rarity ?? 'COMMON'].split(' ')[0]}>
+                    <span
+                      className={
+                        cosmeticRarityStyle[profile?.equippedFont?.rarity ?? 'COMMON'].split(' ')[0]
+                      }
+                    >
                       {profile?.equippedFont?.name ?? '—'}
                     </span>
                   </li>
                   <li className="flex items-center justify-between gap-3 text-xs">
-                    <span className="font-mono text-[10px] uppercase text-silver-muted">Mascote</span>
-                    <span className={cosmeticRarityStyle[profile?.equippedMascot?.rarity ?? 'COMMON'].split(' ')[0]}>
+                    <span className="font-mono text-[10px] uppercase text-silver-muted">
+                      Efeito
+                    </span>
+                    <span
+                      className={
+                        cosmeticRarityStyle[profile?.equippedEffect?.rarity ?? 'COMMON'].split(
+                          ' ',
+                        )[0]
+                      }
+                    >
+                      {profile?.equippedEffect?.name ?? '—'}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3 text-xs">
+                    <span className="font-mono text-[10px] uppercase text-silver-muted">
+                      Mascote
+                    </span>
+                    <span
+                      className={
+                        cosmeticRarityStyle[profile?.equippedMascot?.rarity ?? 'COMMON'].split(
+                          ' ',
+                        )[0]
+                      }
+                    >
                       {profile?.equippedMascot?.name ?? '—'}
                     </span>
                   </li>
@@ -314,7 +391,9 @@ export function ProfilePage() {
                   Seguindo ({followingQuery.data?.following.length ?? 0})
                 </h2>
 
-                {followingQuery.isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
+                {followingQuery.isLoading && (
+                  <p className="text-sm text-silver-muted">Carregando...</p>
+                )}
 
                 {!followingQuery.isLoading && followingQuery.data?.following.length === 0 && (
                   <p className="text-sm text-silver-muted">
@@ -351,7 +430,9 @@ export function ProfilePage() {
                   Seguidores ({followersQuery.data?.followers.length ?? 0})
                 </h2>
 
-                {followersQuery.isLoading && <p className="text-sm text-silver-muted">Carregando...</p>}
+                {followersQuery.isLoading && (
+                  <p className="text-sm text-silver-muted">Carregando...</p>
+                )}
 
                 {!followersQuery.isLoading && followersQuery.data?.followers.length === 0 && (
                   <p className="text-sm text-silver-muted">Nenhum player te segue ainda.</p>
@@ -361,7 +442,9 @@ export function ProfilePage() {
                   <div className="bg-navy-light ring-1 ring-silver/10 divide-y divide-silver/5">
                     {followersQuery.data.followers.map((follow) => (
                       <div key={follow.id} className="p-4">
-                        <span className="font-mono text-sm truncate">{follow.followerDisplayName}</span>
+                        <span className="font-mono text-sm truncate">
+                          {follow.followerDisplayName}
+                        </span>
                       </div>
                     ))}
                   </div>

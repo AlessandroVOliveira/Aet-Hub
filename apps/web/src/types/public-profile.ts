@@ -15,6 +15,8 @@ export interface PublicProfile {
   equippedTitle: CosmeticItem | null;
   equippedFont: CosmeticItem | null;
   equippedMascot: CosmeticItem | null;
+  equippedBanner: CosmeticItem | null;
+  equippedEffect: CosmeticItem | null;
 }
 
 export interface GetPublicProfileResponse {
