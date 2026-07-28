@@ -14,6 +14,9 @@ interface MessageBubbleProps {
   senderFrameClassName?: string | null;
   senderTitleName?: string | null;
   senderTitleRarity?: CosmeticRarity | null;
+  // Armário cosmético (fatia 3) — só fonte, sem mascote (PlayerBadge é um
+  // avatar de 24px, escala pequena demais pro emoji).
+  senderFontClassName?: string | null;
   content: string;
   createdAt: string;
   // Chat geral e DM são endpoints RF-40 diferentes (ver reports.service.ts),
@@ -30,6 +33,7 @@ export function MessageBubble({
   senderFrameClassName,
   senderTitleName,
   senderTitleRarity,
+  senderFontClassName,
   content,
   createdAt,
   reportContentType,
@@ -49,7 +53,7 @@ export function MessageBubble({
               titleName={senderTitleName}
               titleRarity={senderTitleRarity}
             />
-            {senderName}
+            <span className={senderFontClassName ?? ''}>{senderName}</span>
           </p>
         )}
         <p className="break-words">{content}</p>

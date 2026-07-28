@@ -9,6 +9,8 @@ export interface CosmeticItem {
   rarity: CosmeticRarity;
   priceInPoints: number;
   className: string | null;
+  // Sprite do mascote (emoji) — só usado em kind MASCOT.
+  emoji: string | null;
   unlockAchievementCode: string | null;
   isActive: boolean;
   createdAt: string;
@@ -25,6 +27,8 @@ export interface OwnedCosmeticItem extends CosmeticItem {
 export interface CosmeticLoadout {
   frameId: string | null;
   titleId: string | null;
+  fontId: string | null;
+  mascotId: string | null;
 }
 
 export interface GetCosmeticsResponse {
@@ -47,6 +51,7 @@ export interface CosmeticItemFormFields {
   rarity: CosmeticRarity;
   priceInPoints: number;
   className?: string;
+  emoji?: string;
   unlockAchievementCode?: string;
   isActive: boolean;
 }
@@ -62,4 +67,6 @@ export interface PurchaseCosmeticItemPayload {
 export interface UpdateLoadoutPayload {
   frameId?: string | null;
   titleId?: string | null;
+  fontId?: string | null;
+  mascotId?: string | null;
 }

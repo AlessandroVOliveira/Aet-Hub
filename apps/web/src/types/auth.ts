@@ -48,6 +48,8 @@ export interface UserProfile {
   user: { id: string; username: string; email: string };
   equippedFrame: CosmeticItem | null;
   equippedTitle: CosmeticItem | null;
+  equippedFont: CosmeticItem | null;
+  equippedMascot: CosmeticItem | null;
 }
 
 export interface GetMeResponse {

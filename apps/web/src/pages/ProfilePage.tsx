@@ -108,21 +108,34 @@ export function ProfilePage() {
             título/nível inline, info complementar alinhada à direita. */}
         {profile && tab === 'overview' && (
           <section className="ring-1 ring-silver/10 p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-6">
-            {profile.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt={profile.displayName}
-                className={`size-24 object-cover shrink-0 ${profile.equippedFrame?.className ?? 'ring-1 ring-silver/20'}`}
-              />
-            ) : (
-              <div
-                className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl shrink-0 ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
-              >
-                {profile.displayName[0]?.toUpperCase() ?? profile.user.username[0]?.toUpperCase()}
-              </div>
-            )}
+            <div className="relative shrink-0">
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.displayName}
+                  className={`size-24 object-cover ${profile.equippedFrame?.className ?? 'ring-1 ring-silver/20'}`}
+                />
+              ) : (
+                <div
+                  className={`size-24 bg-navy-dark grid place-items-center font-display italic text-3xl ${profile.equippedFrame?.className ?? 'ring-1 ring-ember/40'}`}
+                >
+                  {profile.displayName[0]?.toUpperCase() ?? profile.user.username[0]?.toUpperCase()}
+                </div>
+              )}
+              {profile.equippedMascot?.emoji && (
+                <span
+                  className={`pointer-events-none absolute -bottom-2 -left-3 text-2xl drop-shadow-[0_0_6px_var(--color-ember)] ${profile.equippedMascot.className ?? ''}`}
+                  title={profile.equippedMascot.name}
+                  aria-hidden
+                >
+                  {profile.equippedMascot.emoji}
+                </span>
+              )}
+            </div>
             <div className="min-w-0">
-              <p className="text-3xl md:text-5xl uppercase leading-none font-display italic">
+              <p
+                className={`text-3xl md:text-5xl uppercase leading-none ${profile.equippedFont?.className ?? 'font-display italic'}`}
+              >
                 {profile.displayName}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -277,6 +290,18 @@ export function ProfilePage() {
                     <span className="font-mono text-[10px] uppercase text-silver-muted">Título</span>
                     <span className={cosmeticRarityStyle[profile?.equippedTitle?.rarity ?? 'COMMON'].split(' ')[0]}>
                       {profile?.equippedTitle?.name ?? '—'}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3 text-xs">
+                    <span className="font-mono text-[10px] uppercase text-silver-muted">Fonte</span>
+                    <span className={cosmeticRarityStyle[profile?.equippedFont?.rarity ?? 'COMMON'].split(' ')[0]}>
+                      {profile?.equippedFont?.name ?? '—'}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3 text-xs">
+                    <span className="font-mono text-[10px] uppercase text-silver-muted">Mascote</span>
+                    <span className={cosmeticRarityStyle[profile?.equippedMascot?.rarity ?? 'COMMON'].split(' ')[0]}>
+                      {profile?.equippedMascot?.name ?? '—'}
                     </span>
                   </li>
                 </ul>

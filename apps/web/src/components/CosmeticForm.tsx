@@ -29,6 +29,7 @@ function emptyDefaults(): CosmeticItemFormFields {
     rarity: 'COMMON',
     priceInPoints: 0,
     className: '',
+    emoji: '',
     unlockAchievementCode: '',
     isActive: true,
   };
@@ -42,6 +43,7 @@ function toFormDefaults(item: CosmeticItem): CosmeticItemFormFields {
     rarity: item.rarity,
     priceInPoints: item.priceInPoints,
     className: item.className ?? '',
+    emoji: item.emoji ?? '',
     unlockAchievementCode: item.unlockAchievementCode ?? '',
     isActive: item.isActive,
   };
@@ -83,6 +85,7 @@ export function CosmeticForm({ mode, cosmeticItem }: CosmeticFormProps) {
       rarity: values.rarity,
       priceInPoints: Number(values.priceInPoints),
       className: values.className?.trim() || undefined,
+      emoji: values.emoji?.trim() || undefined,
       unlockAchievementCode: values.unlockAchievementCode?.trim() || undefined,
       isActive: values.isActive,
     };
@@ -131,7 +134,8 @@ export function CosmeticForm({ mode, cosmeticItem }: CosmeticFormProps) {
           <option value="MASCOT">Mascote</option>
         </select>
         <p className="mt-1 text-xs text-silver-muted">
-          Só Borda e Título têm telas de compra/equipar nesta fatia.
+          Borda, Título, Fonte e Mascote já têm telas de compra/equipar. Banner e Efeito
+          aguardam fatias futuras.
         </p>
       </div>
 
@@ -201,6 +205,21 @@ export function CosmeticForm({ mode, cosmeticItem }: CosmeticFormProps) {
           placeholder="ex.: ring-2 ring-ember animate-ember-glow"
           {...register('className', { maxLength: 200 })}
         />
+      </div>
+
+      <div>
+        <label htmlFor="emoji" className={labelClass}>
+          Emoji (mascotes)
+        </label>
+        <input
+          id="emoji"
+          className={inputClass}
+          placeholder="ex.: 🐺"
+          {...register('emoji', { maxLength: 16 })}
+        />
+        <p className="mt-1 text-xs text-silver-muted">
+          Só usado por itens da categoria Mascote — sprite renderizado sobre o avatar.
+        </p>
       </div>
 
       <div>

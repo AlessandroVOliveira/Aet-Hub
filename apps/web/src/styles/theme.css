@@ -54,3 +54,39 @@
 @utility animate-scanline {
   animation: aet-scanline 8s linear infinite;
 }
+
+/* Armário cosmético (fatia 3) — mascotes, portado de
+   src-lovable/pixel-palette-pal-07/src/styles.css. */
+@keyframes aet-mascot-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scaleX(1);
+  }
+  35% {
+    transform: translateY(-8px) scaleX(1);
+  }
+  50% {
+    transform: translateY(0) scaleX(-1);
+  }
+  85% {
+    transform: translateY(-6px) scaleX(-1);
+  }
+}
+@keyframes aet-mascot-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(6deg);
+  }
+}
+
+@utility animate-mascot-bounce {
+  animation: aet-mascot-bounce 1.8s infinite ease-in-out;
+  display: inline-block;
+}
+@utility animate-mascot-float {
+  animation: aet-mascot-float 3s infinite ease-in-out;
+  display: inline-block;
+}

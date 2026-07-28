@@ -67,7 +67,9 @@ export function PostDetailPage() {
                 titleName={post.authorTitleName}
                 titleRarity={post.authorTitleRarity}
               />
-              <span className="text-silver">@{post.authorDisplayName}</span>
+              <span className={`text-silver ${post.authorFontClassName ?? ''}`}>
+                @{post.authorDisplayName}
+              </span>
               <span className="text-silver-muted ml-2">{formatDate(post.createdAt)}</span>
             </span>
           </header>
@@ -149,7 +151,9 @@ function CommentRow({
             titleName={comment.authorTitleName}
             titleRarity={comment.authorTitleRarity}
           />
-          <span className="text-silver">@{comment.authorDisplayName}</span>
+          <span className={`text-silver ${comment.authorFontClassName ?? ''}`}>
+            @{comment.authorDisplayName}
+          </span>
           <span className="text-silver-muted ml-2">{formatDate(comment.createdAt)}</span>
         </span>
         {isOwner ? (

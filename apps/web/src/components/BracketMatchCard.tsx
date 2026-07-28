@@ -20,9 +20,10 @@ function seatName(seat: RegistrationSeat | null): string {
   return seat.user.profile?.displayName ?? seat.user.username;
 }
 
-// Armário cosmético (fatia 2): borda/título equipados, vindos do mesmo
+// Armário cosmético (fatia 2 borda/título; fatia 3 fonte): vindos do mesmo
 // select de profile já usado pra displayName — visibilidade continua sendo
-// a de colega de torneio, nenhuma leitura nova.
+// a de colega de torneio, nenhuma leitura nova. Sem mascote de propósito
+// (PlayerBadge é um avatar de 24px, escala pequena demais pro emoji).
 function SeatLabel({ seat }: { seat: RegistrationSeat | null }) {
   const name = seatName(seat);
   if (!seat) {
@@ -36,7 +37,9 @@ function SeatLabel({ seat }: { seat: RegistrationSeat | null }) {
         titleName={seat.user.profile?.equippedTitle?.name}
         titleRarity={seat.user.profile?.equippedTitle?.rarity}
       />
-      <span className="truncate">{name}</span>
+      <span className={`truncate ${seat.user.profile?.equippedFont?.className ?? ''}`}>
+        {name}
+      </span>
     </span>
   );
 }

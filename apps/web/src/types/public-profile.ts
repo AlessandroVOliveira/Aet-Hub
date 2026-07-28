@@ -13,6 +13,8 @@ export interface PublicProfile {
   followingCount: number;
   equippedFrame: CosmeticItem | null;
   equippedTitle: CosmeticItem | null;
+  equippedFont: CosmeticItem | null;
+  equippedMascot: CosmeticItem | null;
 }
 
 export interface GetPublicProfileResponse {

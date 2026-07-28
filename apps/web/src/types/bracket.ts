@@ -14,6 +14,9 @@ export interface RegistrationSeat {
       displayName: string;
       equippedFrame: { className: string | null } | null;
       equippedTitle: { name: string; rarity: CosmeticRarity } | null;
+      // Armário cosmético (fatia 3) — só fonte, sem mascote (mesmo
+      // racional de ranking.ts).
+      equippedFont: { className: string | null } | null;
     } | null;
   };
 }

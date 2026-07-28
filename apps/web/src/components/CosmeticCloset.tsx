@@ -5,21 +5,31 @@ import { useMyWallet } from '@/hooks/useMyWallet';
 import { ApiError } from '@/services/http';
 import { Banner } from '@/components/ui/Banner';
 import { cosmeticRarityLabels, cosmeticRarityStyle } from '@/utils/format';
-import type { CosmeticKind, OwnedCosmeticItem } from '@/types/cosmetic';
+import type { CosmeticKind, CosmeticLoadout, OwnedCosmeticItem } from '@/types/cosmetic';
 
 // Grid/cards espelham src-lovable/pixel-palette-pal-07/src/routes/profile.tsx
-// (aba "Personalizar") — fatia 1 só cobre Bordas/Títulos, os outros 4 kinds
-// aguardam fatias futuras (ver memory/project_cosmetic_locker_slice.md).
+// (aba "Personalizar") — fatias 1/3 cobrem Bordas/Títulos/Fontes/Mascotes,
+// Banner/Efeito aguardam fatias futuras (ver
+// memory/project_cosmetic_locker_slice.md).
 const KIND_TABS: { id: CosmeticKind; label: string }[] = [
   { id: 'FRAME', label: 'Bordas' },
   { id: 'TITLE', label: 'Títulos' },
+  { id: 'FONT', label: 'Fontes' },
+  { id: 'MASCOT', label: 'Mascotes' },
 ];
 
-type LoadoutSlotKey = 'frameId' | 'titleId';
-
-function slotKeyFor(kind: CosmeticKind): LoadoutSlotKey {
-  return kind === 'FRAME' ? 'frameId' : 'titleId';
-}
+// Record completo (não Partial) de propósito: força o compilador a avisar
+// se um 7º CosmeticKind for adicionado sem passar por aqui. BANNER/EFFECT
+// ficam `undefined` — inalcançáveis pela UI hoje (KIND_TABS não os lista),
+// mas o tipo continua exaustivo.
+const SLOT_KEY: Record<CosmeticKind, keyof CosmeticLoadout | undefined> = {
+  FRAME: 'frameId',
+  TITLE: 'titleId',
+  FONT: 'fontId',
+  MASCOT: 'mascotId',
+  BANNER: undefined,
+  EFFECT: undefined,
+};
 
 export function CosmeticCloset() {
   const [kind, setKind] = useState<CosmeticKind>('FRAME');
@@ -34,14 +44,17 @@ export function CosmeticCloset() {
   const items = (cosmeticsQuery.data?.items ?? []).filter((item) => item.kind === kind);
 
   function isEquipped(item: OwnedCosmeticItem): boolean {
-    if (!loadout) return false;
-    return item.kind === 'FRAME' ? loadout.frameId === item.id : loadout.titleId === item.id;
+    const key = SLOT_KEY[item.kind];
+    if (!loadout || !key) return false;
+    return loadout[key] === item.id;
   }
 
   function handleEquip(item: OwnedCosmeticItem) {
+    const key = SLOT_KEY[item.kind];
+    if (!key) return;
     setActionError(null);
     loadoutMutation.mutate(
-      { [slotKeyFor(item.kind)]: item.id },
+      { [key]: item.id },
       {
         onError: (error) => {
           setActionError(error instanceof ApiError ? error.message : 'Erro inesperado');
@@ -124,6 +137,20 @@ export function CosmeticCloset() {
                       className={`size-10 grid place-items-center bg-navy-dark font-display italic text-xs ${item.className ?? ''}`}
                     >
                       AE
+                    </span>
+                  ) : item.kind === 'FONT' ? (
+                    <span className={`text-base ${item.className ?? ''}`}>AET</span>
+                  ) : item.kind === 'MASCOT' ? (
+                    <span className="relative size-10 grid place-items-center bg-navy-dark ring-1 ring-silver/20 font-display italic text-xs">
+                      AE
+                      {item.emoji && (
+                        <span
+                          className={`pointer-events-none absolute -bottom-2 -left-3 text-xl ${item.className ?? ''}`}
+                          aria-hidden
+                        >
+                          {item.emoji}
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <span className={`text-xs font-mono uppercase ${item.className ?? ''}`}>

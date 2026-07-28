@@ -21,6 +21,9 @@ export interface Post {
   authorFrameClassName: string | null;
   authorTitleName: string | null;
   authorTitleRarity: CosmeticRarity | null;
+  // Armário cosmético (fatia 3) — só fonte, sem mascote (mesmo racional de
+  // ranking.ts).
+  authorFontClassName: string | null;
   content: string;
   createdAt: string;
   commentCount: number;
@@ -38,6 +41,7 @@ export interface PostComment {
   authorFrameClassName: string | null;
   authorTitleName: string | null;
   authorTitleRarity: CosmeticRarity | null;
+  authorFontClassName: string | null;
   content: string;
   createdAt: string;
 }

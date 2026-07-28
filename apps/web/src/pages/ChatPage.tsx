@@ -83,6 +83,7 @@ export function ChatPage() {
             senderFrameClassName={message.senderFrameClassName}
             senderTitleName={message.senderTitleName}
             senderTitleRarity={message.senderTitleRarity}
+            senderFontClassName={message.senderFontClassName}
             content={message.content}
             createdAt={message.createdAt}
             reportContentType="CHAT_MESSAGE"

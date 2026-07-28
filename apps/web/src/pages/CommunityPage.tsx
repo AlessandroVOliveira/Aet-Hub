@@ -135,7 +135,9 @@ function PostCard({ communityId, post }: { communityId: string; post: Post }) {
             titleName={post.authorTitleName}
             titleRarity={post.authorTitleRarity}
           />
-          <span className="text-silver">@{post.authorDisplayName}</span>
+          <span className={`text-silver ${post.authorFontClassName ?? ''}`}>
+            @{post.authorDisplayName}
+          </span>
           <span className="text-silver-muted ml-2">{formatDate(post.createdAt)}</span>
         </span>
       </header>

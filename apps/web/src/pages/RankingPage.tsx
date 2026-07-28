@@ -72,7 +72,7 @@ export function RankingPage() {
                         titleName={entry.title?.name}
                         titleRarity={entry.title?.rarity}
                       />
-                      <span className="truncate">
+                      <span className={`truncate ${entry.font?.className ?? ''}`}>
                         {isMe ? (
                           (entry.displayName ?? entry.username)
                         ) : (
