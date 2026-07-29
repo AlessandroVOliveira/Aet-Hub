@@ -43,6 +43,7 @@ enum BracketType {
 enum BracketSide {
   WINNERS
   LOSERS
+  GRAND_FINAL
 }
 
 enum TiebreakerRule {
@@ -337,7 +338,11 @@ model BracketSlot {
 
   tournament   Tournament    @relation(fields: [tournamentId], references: [id])
   registration Registration? @relation(fields: [registrationId], references: [id])
-  matches      Match[]
+  matches      Match[]       @relation("MatchDestinationSlot")
+  // Eliminação dupla: partidas da chave de vencedores (WB) apontam o
+  // perdedor pra este slot (destino na chave de perdedores). Nunca
+  // preenchido em slots WINNERS/GRAND_FINAL — só é alvo de partidas WB.
+  loserOfMatches Match[]     @relation("MatchLoserSlot")
 
   @@unique([tournamentId, side, round, position])
   @@map("bracket_slots")
@@ -347,6 +352,12 @@ model Match {
   id                   String      @id @default(cuid())
   tournamentId         String      @map("tournament_id")
   bracketSlotId        String      @map("bracket_slot_id")
+  // Eliminação dupla: destino do PERDEDOR desta partida na chave de
+  // perdedores — só setado em partidas da chave de vencedores (WB); null
+  // em partidas da LB (perdedor é eliminado) e da grande final (o destino
+  // do perdedor da GF1, se houver, é decidido em runtime, não é um slot
+  // fixo — ver bracket-generator.ts#maybeCreateGrandFinalReset).
+  loserBracketSlotId   String?     @map("loser_bracket_slot_id")
   registrationAId      String?     @map("registration_a_id")
   registrationBId      String?     @map("registration_b_id")
   winnerRegistrationId String?     @map("winner_registration_id")
@@ -362,7 +373,8 @@ model Match {
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
   tournament         Tournament          @relation(fields: [tournamentId], references: [id])
-  bracketSlot        BracketSlot         @relation(fields: [bracketSlotId], references: [id])
+  bracketSlot        BracketSlot         @relation("MatchDestinationSlot", fields: [bracketSlotId], references: [id])
+  loserBracketSlot   BracketSlot?        @relation("MatchLoserSlot", fields: [loserBracketSlotId], references: [id])
   registrationA      Registration?       @relation("MatchRegistrationA", fields: [registrationAId], references: [id])
   registrationB      Registration?       @relation("MatchRegistrationB", fields: [registrationBId], references: [id])
   winner             Registration?       @relation("MatchWinner", fields: [winnerRegistrationId], references: [id])

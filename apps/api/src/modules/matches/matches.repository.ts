@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { BracketSide, Prisma } from '@prisma/client';
 
 // Todo método recebe a transação interativa aberta por withRls — nunca
 // importar o `prisma` singleton aqui.
@@ -11,20 +11,47 @@ import type { Prisma } from '@prisma/client';
 
 export function createBracketSlot(
   tx: Prisma.TransactionClient,
-  data: { tournamentId: string; round: number; position: number },
+  data: { tournamentId: string; side: BracketSide; round: number; position: number },
 ) {
-  return tx.bracketSlot.create({ data: { ...data, side: 'WINNERS' } });
+  return tx.bracketSlot.create({ data });
 }
 
 export function findBracketSlotByPosition(
   tx: Prisma.TransactionClient,
   tournamentId: string,
+  side: BracketSide,
   round: number,
   position: number,
 ) {
   return tx.bracketSlot.findUnique({
-    where: { tournamentId_side_round_position: { tournamentId, side: 'WINNERS', round, position } },
+    where: { tournamentId_side_round_position: { tournamentId, side, round, position } },
   });
+}
+
+// Eliminação dupla: tamanho de uma rodada de slots já criados — usado pra
+// derivar bracketSize/wbRounds em runtime (cascata de recordMatchResult),
+// sem precisar persistir esses números em lugar nenhum.
+export async function countBracketSlotsInRound(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+  side: BracketSide,
+  round: number,
+): Promise<number> {
+  return tx.bracketSlot.count({ where: { tournamentId, side, round } });
+}
+
+// Eliminação dupla: conta partidas cujo DESTINO (bracketSlotId) está numa
+// certa rodada/lado — usado pra achar quantas partidas reais existem na
+// rodada 1 da WB (destino = rodada 2), o único número que a Fase de
+// geração não consegue recomputar de forma puramente estrutural (depende
+// de quantos byes a rodada 1 teve).
+export async function countMatchesByDestinationRound(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+  side: BracketSide,
+  round: number,
+): Promise<number> {
+  return tx.match.count({ where: { tournamentId, bracketSlot: { side, round } } });
 }
 
 export function findBracketSlotById(tx: Prisma.TransactionClient, id: string) {
@@ -54,9 +81,26 @@ export function createMatch(
     bracketSlotId: string;
     registrationAId: string;
     registrationBId: string;
+    // Eliminação dupla: destino do perdedor na chave de perdedores, já
+    // conhecido no momento da criação pra partidas da rodada 1 da WB (a
+    // rodada 1 já sabe o plano completo). Rodadas seguintes da WB setam
+    // isso depois, via setMatchLoserBracketSlot — ver bracket-generator.ts.
+    loserBracketSlotId?: string;
   },
 ) {
   return tx.match.create({ data: { ...data, status: 'SCHEDULED' } });
+}
+
+// Eliminação dupla: wiring do destino do perdedor pra partidas da WB
+// criadas via cascata (rodada 2+), quando o slot de destino na LB só é
+// resolvido depois que a partida em si já foi criada por
+// maybeCreateNextRoundMatch (função genérica, não sabe de LB).
+export function setMatchLoserBracketSlot(
+  tx: Prisma.TransactionClient,
+  matchId: string,
+  loserBracketSlotId: string,
+) {
+  return tx.match.update({ where: { id: matchId }, data: { loserBracketSlotId } });
 }
 
 export function findMatchByBracketSlotId(tx: Prisma.TransactionClient, bracketSlotId: string) {

@@ -98,13 +98,6 @@ export async function startTournament(actor: AccessTokenPayload, id: string) {
         throw new AppError('Torneio não encontrado', 404);
       }
 
-      if (tournament.bracketType !== 'SINGLE_ELIMINATION') {
-        throw new AppError(
-          'Só é possível iniciar torneios de eliminação simples nesta versão',
-          409,
-        );
-      }
-
       if (NON_STARTABLE_STATUSES.includes(tournament.status)) {
         throw new AppError('Torneio já foi iniciado ou encerrado', 409);
       }
@@ -117,10 +110,19 @@ export async function startTournament(actor: AccessTokenPayload, id: string) {
       if (confirmed.length < 2) {
         throw new AppError('Não há inscritos suficientes', 409);
       }
+      // Eliminação dupla precisa de pelo menos 2 rodadas na WB (bracketSize
+      // >= 4) pra ter uma LB minimamente útil — abaixo disso a chave de
+      // perdedores degenera sem sentido prático.
+      if (tournament.bracketType === 'DOUBLE_ELIMINATION' && confirmed.length < 4) {
+        throw new AppError(
+          'Torneios de eliminação dupla exigem pelo menos 4 inscritos confirmados',
+          409,
+        );
+      }
 
       return matchesService.generateBracket(
         tx,
-        { id: tournament.id, name: tournament.name },
+        { id: tournament.id, name: tournament.name, bracketType: tournament.bracketType },
         confirmed.map((registration) => registration.id),
       );
     },
@@ -225,6 +227,9 @@ export async function completeTournament(actor: AccessTokenPayload, id: string) 
     }
     if (tournament.status !== 'IN_PROGRESS') {
       throw new AppError('Só é possível encerrar torneios em andamento', 409);
+    }
+    if (tournament.bracketType !== 'SINGLE_ELIMINATION') {
+      throw new AppError('Encerrar torneios de eliminação dupla ainda não é suportado', 409);
     }
 
     const { placements, matchOutcomes } = await matchesService.computeFinalPlacements(

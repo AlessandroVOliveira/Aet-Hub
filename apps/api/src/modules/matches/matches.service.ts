@@ -1,4 +1,4 @@
-import type { Match, Notification, Prisma, TiebreakerRule } from '@prisma/client';
+import type { BracketType, Match, Notification, Prisma, TiebreakerRule } from '@prisma/client';
 import { withRls } from '../../config/rls.js';
 import { getSocketServer } from '../../config/socket.js';
 import { AppError } from '../../utils/app-error.js';
@@ -81,8 +81,20 @@ async function buildMatchReadyNotifications(
 // Chamada por tournaments.service.startTournament, já dentro da transação
 // aberta pelo withRls dele — não abre a própria transação. Broadcast e
 // notificações ficam de fora do retorno pra quem chamou emitir só depois
-// do commit (ver comentário de broadcastBracketUpdated acima).
+// do commit (ver comentário de broadcastBracketUpdated acima). Dispatcha
+// por bracketType — o resto do módulo (recordMatchResult) faz o mesmo.
 export async function generateBracket(
+  tx: Prisma.TransactionClient,
+  tournament: { id: string; name: string; bracketType: BracketType },
+  registrationIds: string[],
+) {
+  if (tournament.bracketType === 'DOUBLE_ELIMINATION') {
+    return generateDoubleEliminationBracket(tx, tournament, registrationIds);
+  }
+  return generateSingleEliminationBracket(tx, tournament, registrationIds);
+}
+
+async function generateSingleEliminationBracket(
   tx: Prisma.TransactionClient,
   tournament: { id: string; name: string },
   registrationIds: string[],
@@ -94,7 +106,12 @@ export async function generateBracket(
   for (let round = 1; round <= plan.totalRounds; round++) {
     const slotsInRound = plan.bracketSize / 2 ** (round - 1);
     for (let position = 1; position <= slotsInRound; position++) {
-      const slot = await matchesRepository.createBracketSlot(tx, { tournamentId, round, position });
+      const slot = await matchesRepository.createBracketSlot(tx, {
+        tournamentId,
+        side: 'WINNERS',
+        round,
+        position,
+      });
       slotIdByRoundPosition.set(`${round}-${position}`, slot.id);
     }
   }
@@ -131,6 +148,113 @@ export async function generateBracket(
       bye.pairIndex,
     );
     if (cascadedMatch) createdMatches.push(cascadedMatch);
+  }
+
+  await tournamentsRepository.updateTournamentStatus(tx, tournamentId, 'IN_PROGRESS');
+
+  const notifications = await buildMatchReadyNotifications(tx, tournament, createdMatches);
+  const bracket = await matchesRepository.findBracketByTournamentId(tx, tournamentId);
+  return { bracket, notifications };
+}
+
+// Cria WB + LB + os dois slots da grande final de uma vez (a LB/GF ficam
+// vazias até as partidas reais da WB/LB resolverem — só a rodada 1 da WB é
+// semeada imediatamente, mesmo padrão da eliminação simples). Ver
+// bracket-generator.ts#computeDoubleEliminationPlan pro cronograma da LB.
+async function generateDoubleEliminationBracket(
+  tx: Prisma.TransactionClient,
+  tournament: { id: string; name: string },
+  registrationIds: string[],
+) {
+  const tournamentId = tournament.id;
+  const { wb, wbRounds, lbSchedule } = bracketGenerator.computeDoubleEliminationPlan(registrationIds);
+
+  const wbSlotId = new Map<string, string>();
+  for (let round = 1; round <= wb.totalRounds; round++) {
+    const slotsInRound = wb.bracketSize / 2 ** (round - 1);
+    for (let position = 1; position <= slotsInRound; position++) {
+      const slot = await matchesRepository.createBracketSlot(tx, {
+        tournamentId,
+        side: 'WINNERS',
+        round,
+        position,
+      });
+      wbSlotId.set(`${round}-${position}`, slot.id);
+    }
+  }
+
+  const lbSlotId = new Map<string, string>();
+  for (const roundPlan of lbSchedule) {
+    for (let position = 1; position <= roundPlan.entering; position++) {
+      const slot = await matchesRepository.createBracketSlot(tx, {
+        tournamentId,
+        side: 'LOSERS',
+        round: roundPlan.lbRound,
+        position,
+      });
+      lbSlotId.set(`${roundPlan.lbRound}-${position}`, slot.id);
+    }
+  }
+
+  await matchesRepository.createBracketSlot(tx, {
+    tournamentId,
+    side: 'GRAND_FINAL',
+    round: 1,
+    position: 1,
+  });
+  await matchesRepository.createBracketSlot(tx, {
+    tournamentId,
+    side: 'GRAND_FINAL',
+    round: 2,
+    position: 1,
+  });
+
+  for (const seat of wb.round1Seats) {
+    if (seat.registrationId) {
+      await matchesRepository.updateBracketSlotRegistration(
+        tx,
+        wbSlotId.get(`1-${seat.position}`)!,
+        seat.registrationId,
+      );
+    }
+  }
+
+  const createdMatches: Match[] = [];
+  const entryRoundPlan = lbSchedule[0]!;
+
+  for (const pair of wb.matchPairs) {
+    const lbPosition = entryRoundPlan.wbLoserPosition!.get(pair.pairIndex)!;
+    const match = await matchesRepository.createMatch(tx, {
+      tournamentId,
+      bracketSlotId: wbSlotId.get(`2-${pair.pairIndex}`)!,
+      registrationAId: pair.registrationAId,
+      registrationBId: pair.registrationBId,
+      loserBracketSlotId: lbSlotId.get(`1-${lbPosition}`)!,
+    });
+    createdMatches.push(match);
+  }
+
+  for (const bye of wb.byes) {
+    const nextSlotId = wbSlotId.get(`2-${bye.pairIndex}`)!;
+    await matchesRepository.updateBracketSlotRegistration(tx, nextSlotId, bye.registrationId);
+    const cascadedMatch = await bracketGenerator.maybeCreateNextRoundMatch(
+      tx,
+      tournamentId,
+      2,
+      bye.pairIndex,
+    );
+    if (cascadedMatch) {
+      createdMatches.push(cascadedMatch);
+      const cascadedSlot = await matchesRepository.findBracketSlotById(tx, cascadedMatch.bracketSlotId);
+      await bracketGenerator.wireWbLoserDestination(
+        tx,
+        tournamentId,
+        wbRounds,
+        cascadedMatch.id,
+        cascadedSlot.round - 1,
+        cascadedSlot.position,
+      );
+    }
   }
 
   await tournamentsRepository.updateTournamentStatus(tx, tournamentId, 'IN_PROGRESS');
@@ -178,24 +302,82 @@ export async function recordMatchResult(
         scoreB: input.scoreB,
       });
 
+      // O torneio da partida sempre existe (FK) — não revalidar aqui,
+      // computeFinalPlacements/startTournament já garantiram o fluxo.
+      const tournament = await tournamentsRepository.findTournamentById(tx, match.tournamentId);
+
       const targetSlot = await matchesRepository.findBracketSlotById(tx, match.bracketSlotId);
       await matchesRepository.updateBracketSlotRegistration(
         tx,
         match.bracketSlotId,
         input.winnerRegistrationId,
       );
-      const nextMatch = await bracketGenerator.maybeCreateNextRoundMatch(
-        tx,
-        match.tournamentId,
-        targetSlot.round,
-        targetSlot.position,
-      );
+
+      let nextMatch: Match | null = null;
+      if (tournament!.bracketType === 'SINGLE_ELIMINATION') {
+        nextMatch = await bracketGenerator.maybeCreateNextRoundMatch(
+          tx,
+          match.tournamentId,
+          targetSlot.round,
+          targetSlot.position,
+        );
+      } else if (targetSlot.side === 'WINNERS') {
+        // Eliminação dupla — vencedor avança na WB (mecanismo genérico,
+        // idêntico ao de eliminação simples) e o perdedor é roteado pra LB.
+        nextMatch = await bracketGenerator.maybeCreateNextRoundMatch(
+          tx,
+          match.tournamentId,
+          targetSlot.round,
+          targetSlot.position,
+        );
+        if (nextMatch) {
+          const nextSlot = await matchesRepository.findBracketSlotById(tx, nextMatch.bracketSlotId);
+          const wbRounds = await bracketGenerator.computeWbRounds(tx, match.tournamentId);
+          await bracketGenerator.wireWbLoserDestination(
+            tx,
+            match.tournamentId,
+            wbRounds,
+            nextMatch.id,
+            nextSlot.round - 1,
+            nextSlot.position,
+          );
+        }
+        const loserRegistrationId =
+          input.winnerRegistrationId === match.registrationAId
+            ? match.registrationBId!
+            : match.registrationAId!;
+        await bracketGenerator.maybeRouteLoserToLosersBracket(
+          tx,
+          match.tournamentId,
+          match,
+          loserRegistrationId,
+        );
+        const grandFinal = await bracketGenerator.maybeCreateGrandFinal(tx, match.tournamentId);
+        if (grandFinal) nextMatch = grandFinal;
+      } else if (targetSlot.side === 'LOSERS') {
+        nextMatch = await bracketGenerator.checkLosersBracketAdvancement(
+          tx,
+          match.tournamentId,
+          targetSlot.round,
+          targetSlot.position,
+        );
+        const grandFinal = await bracketGenerator.maybeCreateGrandFinal(tx, match.tournamentId);
+        if (grandFinal) nextMatch = grandFinal;
+      } else if (targetSlot.side === 'GRAND_FINAL' && targetSlot.round === 1) {
+        // RF reset de chave — só cria a 2ª partida se quem veio da LB
+        // venceu a 1ª (ver bracket-generator.ts#maybeCreateGrandFinalReset).
+        nextMatch = await bracketGenerator.maybeCreateGrandFinalReset(
+          tx,
+          match.tournamentId,
+          match,
+          input.winnerRegistrationId,
+        );
+      }
+      // targetSlot.side === 'GRAND_FINAL' && round === 2 (reset já jogado)
+      // é sempre terminal — nada mais a avançar.
 
       let matchReadyNotifications: Notification[] = [];
       if (nextMatch) {
-        // O torneio da partida sempre existe (FK) — não revalidar aqui,
-        // computeFinalPlacements/startTournament já garantiram o fluxo.
-        const tournament = await tournamentsRepository.findTournamentById(tx, match.tournamentId);
         matchReadyNotifications = await buildMatchReadyNotifications(
           tx,
           { id: tournament!.id, name: tournament!.name },
@@ -253,6 +435,12 @@ export async function correctMatchResult(
           409,
         );
       }
+      if (tournament.bracketType !== 'SINGLE_ELIMINATION') {
+        throw new AppError(
+          'Corrigir resultado em torneios de eliminação dupla ainda não é suportado',
+          409,
+        );
+      }
 
       if (
         input.winnerRegistrationId !== match.registrationAId &&
@@ -270,6 +458,7 @@ export async function correctMatchResult(
       const nextSlot = await matchesRepository.findBracketSlotByPosition(
         tx,
         match.tournamentId,
+        'WINNERS',
         targetSlot.round + 1,
         nextPosition,
       );
