@@ -968,6 +968,88 @@ SECURITY` bloqueia por padrão mesmo com o GRANT presente se não houver
   só acontecem pelos fluxos dedicados (`POST /:id/start`/`POST
   /:id/complete`). Ver bullet correspondente em "Padrões do frontend"
   pros botões que substituem a troca rápida pra esses dois casos.
+- **Eliminação dupla — motor de geração e avanço (fatia 1/4)**: `BracketType
+  .DOUBLE_ELIMINATION` e `BracketSlot.side` já existiam desde o schema
+  original, mas ficavam bloqueados (`startTournament` recusava com 409) até
+  esta fatia. Decisões tomadas com o usuário via `AskUserQuestion` antes de
+  planejar: formato oficial com **reset de chave** (grande final pode ter 2
+  partidas, não uma final única simplificada); pareamento da LB com
+  **espelhamento anti-revanche** (não sequencial simples); RF-19 (corrigir
+  resultado) fica **bloqueado** (409) pra torneios double elim nesta fatia
+  — cascata de correção pra dois destinos (vencedor E perdedor) é fatia
+  própria futura, assim como colocação final/encerramento e o frontend de
+  visualização (`completeTournament` também bloqueado, 409, até a fatia de
+  colocação final existir).
+  **Schema**: `BracketSide` ganhou `GRAND_FINAL` (migration própria, só
+  `ALTER TYPE ADD VALUE` — nenhuma função SQL lê `BracketSide` hoje, então
+  o gotcha de "usar o valor novo na mesma transação que o criou" não se
+  aplica, mas a migration ficou separada mesmo assim por convenção);
+  `Match.loserBracketSlotId` (nullable, `ON DELETE SET NULL`) — destino do
+  PERDEDOR na LB, só preenchido em partidas da WB (LB: perdedor é
+  eliminado; GF: destino do perdedor é decidido em runtime, não é slot
+  fixo). Duas relations `Match`→`BracketSlot` (`bracketSlotId` e
+  `loserBracketSlotId`) para o mesmo par de modelos exigiram nomear as DUAS
+  com `@relation("Nome")` — a existente (`bracketSlotId`) não precisava de
+  nome enquanto era a única.
+  **Algoritmo** (`bracket-generator.ts`): WB reaproveita `computeBracketPlan`
+  sem mudança nenhuma. LB é um cronograma (`computeLosersBracketSchedule`,
+  função pura) de rodadas "entry" (perdedores da WB rodada 1, pareamento
+  sequencial — nada a espelhar ainda), "major" (sobreviventes da LB
+  enfrentam quem acabou de cair da WB, posições intercaladas via
+  `assignMajorRoundPositions`: sobrevivente[k] × caído[recémCaídos-k+1]) e
+  "minor" (sobreviventes da LB jogam entre si, halving simples — mesma
+  mecânica `ceil(posição/2)` de `maybeCreateNextRoundMatch`, sem mapa
+  próprio). Byes na LB (efeito colateral de N não ser potência de 2 — só a
+  rodada 1 da WB tem bye, da rodada 2 em diante a WB é sempre "limpa")
+  tratados genericamente: QUALQUER rodada com contagem ímpar de entrantes
+  dá bye pra 1 posição (`pairSequential`), inclusive rodadas "major" cujo
+  merge desbalanceou as contagens — não é só um caso de borda da rodada 1
+  da LB, é a mesma regra em toda rodada. Total de rodadas da LB (sem
+  contar o slot terminal) é sempre `2*(wbRounds-1)`, independente de bye.
+  **Cascata em runtime** (`recordMatchResult`, ramificada por
+  `bracketSlot.side` — só quando `bracketType !== SINGLE_ELIMINATION`):
+  WB → avança vencedor (mecanismo genérico existente, inalterado) +
+  roteia perdedor pra LB via `Match.loserBracketSlotId` (já resolvido na
+  criação da partida) + checa grande final. LB → `checkLosersBracketAdvancement`
+  (recursivo — cobre bye encadeado) decide destino via o mesmo cronograma,
+  recomputado em runtime a partir de só 2 números (`computeWbRounds` +
+  contagem de partidas cuja rodada de destino é a rodada 2 da WB — os
+  únicos dois valores que dependem de bye/N, tudo mais é função pura de
+  `wbRounds`). GRAND_FINAL round 1 → `maybeCreateGrandFinalReset` só cria a
+  2ª partida se quem veio da LB (seat B, atribuição determinística na
+  criação da GF1, nunca por paridade de posição) venceu a 1ª.
+  **Gotcha real pego só no teste fim a fim, não no `tsc`**:
+  `computeWbRounds` inicialmente contava os slots da rodada 1 da WB e
+  tratava esse número como `pairsCount` (`Math.log2(pairsCount*2)`) — mas a
+  rodada 1 tem `bracketSize` slots (um por ASSENTO), não `pairsCount` (um
+  por PAR); a fórmula errada inflava `wbRounds` em 1, fazendo a cascata em
+  runtime recompor um cronograma da LB diferente do gerado (que usa
+  `wbRounds` correto, calculado direto de `computeBracketPlan`) —
+  `wireWbLoserDestination` procurava posições que não existiam no banco e
+  silenciosamente não setava `loserBracketSlotId` nenhum (retorno cedo em
+  `if (!lbSlot) return`, sem erro). Só apareceu jogando um torneio de N=4
+  ponta a ponta via script (a final da WB nunca roteava o perdedor pra
+  LB) — nenhum teste unitário da função pura pega esse tipo de bug, porque
+  o bug estava na PONTE entre geração (que já tinha `wbRounds` certo) e
+  cascata em runtime (que recalculava errado). Fix:
+  `Math.log2(bracketSize)` direto, sem o `*2` espúrio.
+  **Primeira infraestrutura de teste automatizado do projeto**: `vitest`
+  como devDependency de `apps/api` (decisão tomada com o usuário via
+  `AskUserQuestion` — alternativa seria script ad-hoc, mesmo padrão manual
+  de todas as fatias anteriores) — `bracket-generator.test.ts` cobre
+  `computeLosersBracketSchedule`/`computeDoubleEliminationPlan` pra N
+  potência exata (4/8/16) e não-potência (5/6/7/9/11), validando cobertura
+  sem duplicata de posições em toda rodada entry/major. `tsconfig.json`
+  ganhou `exclude: ["src/**/*.test.ts"]` — sem isso o `tsc -b` compilava o
+  teste pra `dist/`, e o vitest rodava a suíte DUAS vezes (fonte + build).
+  Testado fim a fim via script Node ad-hoc (`fetch` contra a API real +
+  Prisma Client direto com `MIGRATE_DATABASE_URL` só pra semear
+  jogadores/inscrições/checkin, fora do escopo desta fatia) — dois
+  torneios de 4 inscritos, um forçando o cenário de reset (lado da LB
+  vence a GF1 → GF2 criada com os mesmos competidores) e outro sem reset
+  (lado da WB vence a GF1 → nenhuma GF2), `POST /complete` confirmado 409
+  nos dois. Dados de teste removidos ao final via o próprio Prisma Client
+  do script.
 
 ## Padrões do frontend (apps/web)
 
